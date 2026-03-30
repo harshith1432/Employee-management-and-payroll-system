@@ -5,7 +5,7 @@ class Attendance(db.Model):
     __tablename__ = 'attendance'
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
-    date = db.Column(db.Date, default=datetime.utcnow().date)
+    date = db.Column(db.Date, default=lambda: datetime.now().date())
     clock_in = db.Column(db.DateTime)
     clock_out = db.Column(db.DateTime)
     status = db.Column(db.String(20), default='present') 
@@ -27,7 +27,7 @@ class Payroll(db.Model):
     leave_deductions = db.Column(db.Float, default=0.0)
     net_salary = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), default='pending')
-    generated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    generated_at = db.Column(db.DateTime, default=datetime.now)
     paid_at = db.Column(db.DateTime)
 
 class LeaveRequest(db.Model):
@@ -39,7 +39,7 @@ class LeaveRequest(db.Model):
     end_date = db.Column(db.Date, nullable=False)
     reason = db.Column(db.Text)
     status = db.Column(db.String(20), default='pending')
-    applied_on = db.Column(db.DateTime, default=datetime.utcnow)
+    applied_on = db.Column(db.DateTime, default=datetime.now)
     approved_by = db.Column(db.Integer, db.ForeignKey('users.id'))
 
 class PerformanceReview(db.Model):
@@ -49,7 +49,7 @@ class PerformanceReview(db.Model):
     reviewer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     rating = db.Column(db.Integer)
     feedback = db.Column(db.Text)
-    review_date = db.Column(db.DateTime, default=datetime.utcnow)
+    review_date = db.Column(db.DateTime, default=datetime.now)
 
 class Document(db.Model):
     __tablename__ = 'documents'
@@ -58,15 +58,15 @@ class Document(db.Model):
     doc_name = db.Column(db.String(100), nullable=False)
     doc_type = db.Column(db.String(50))
     file_path = db.Column(db.String(200), nullable=False)
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, default=datetime.now)
 
 class Schedule(db.Model):
     __tablename__ = 'schedules'
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
-    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    date = db.Column(db.Date, nullable=False, default=lambda: datetime.now().date())
     shift_start = db.Column(db.String(10), nullable=False, default="09:00")
     shift_end = db.Column(db.String(10), nullable=False, default="18:00")
     task_description = db.Column(db.Text)
     status = db.Column(db.String(20), default='assigned') # assigned, in_progress, completed
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)

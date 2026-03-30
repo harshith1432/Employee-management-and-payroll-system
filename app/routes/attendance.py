@@ -15,7 +15,7 @@ def clock_in():
     if not user.employee_profile:
         return jsonify(msg="Employee profile not found"), 404
         
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     existing = Attendance.query.filter_by(employee_id=user.employee_profile.id, date=today).first()
     if existing:
         return jsonify(msg="Already clocked in today"), 400
@@ -23,7 +23,7 @@ def clock_in():
     data = request.get_json()
     new_attendance = Attendance(
         employee_id=user.employee_profile.id,
-        clock_in=datetime.utcnow(),
+        clock_in=datetime.now(),
         location=data.get('location')
     )
     db.session.add(new_attendance)
@@ -35,13 +35,13 @@ def clock_in():
 def clock_out():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     attendance = Attendance.query.filter_by(employee_id=user.employee_profile.id, date=today).first()
     if not attendance:
         return jsonify(msg="No clock-in record found for today"), 400
     if attendance.clock_out:
         return jsonify(msg="Already clocked out today"), 400
-    attendance.clock_out = datetime.utcnow()
+    attendance.clock_out = datetime.now()
     db.session.commit()
     return jsonify(msg="Clocked out successfully"), 200
 
@@ -51,7 +51,7 @@ def clock_out():
 def mark_attendance():
     data = request.get_json()
     emp_id = data.get('employee_id')
-    date_str = data.get('date', datetime.utcnow().strftime('%Y-%m-%d'))
+    date_str = data.get('date', datetime.now().strftime('%Y-%m-%d'))
     status = data.get('status', 'Present') # Present, Absent, Half-Day, On Leave
     
     date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -60,13 +60,13 @@ def mark_attendance():
     if attendance:
         attendance.status = status
         if status == 'Present' and not attendance.clock_in:
-            attendance.clock_in = datetime.utcnow()
+            attendance.clock_in = datetime.now()
     else:
         attendance = Attendance(
             employee_id=emp_id,
             date=date_obj,
             status=status,
-            clock_in=datetime.utcnow() if status == 'Present' else None
+            clock_in=datetime.now() if status == 'Present' else None
         )
         db.session.add(attendance)
     

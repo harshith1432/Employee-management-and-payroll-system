@@ -59,7 +59,7 @@ def get_stats():
     total_payroll = db.session.query(func.sum(Payroll.net_salary)).first()[0] or 0
     
     # Present today
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     present_today = Attendance.query.filter_by(date=today, status='Present').count()
     
     # Attendance Trend (Last 7 days)

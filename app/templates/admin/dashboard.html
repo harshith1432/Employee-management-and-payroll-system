@@ -43,16 +43,19 @@
             <div>
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Present Today</p>
                 <h3 class="plus-jakarta text-4xl font-extrabold text-white" id="presentToday">0</h3>
-            </div>
-            <div class="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 group-hover:bg-blue-500/20 transition-all">
-                <i class="fas fa-calendar-alt text-blue-400 text-2xl"></i>
-            </div>
         </div>
-        <div class="mt-4 flex items-center text-xs font-medium text-blue-400">
+        <div class="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 group-hover:bg-blue-500/20 transition-all">
+            <i class="fas fa-calendar-alt text-blue-400 text-2xl"></i>
+        </div>
+    </div>
+    <div class="mt-4 flex items-center justify-between">
+        <div class="flex items-center text-xs font-medium text-blue-400">
             <i class="fas fa-check-circle mr-1"></i>
             <span>Real-time attendance</span>
         </div>
+        <div id="adminLiveClock" class="text-[10px] font-black text-slate-500 uppercase tracking-tighter">00:00:00</div>
     </div>
+</div>
 </div>
 
 <!-- Charts Section -->
@@ -89,7 +92,23 @@
 </div>
 
 <script>
+    function updateClock() {
+        const now = new Date();
+        const clock = document.getElementById('adminLiveClock');
+        if (clock) {
+            clock.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
     async function loadStats() {
+        const role = localStorage.getItem('role') || 'employee';
+        if (role.toLowerCase() === 'employee') {
+            window.location.href = '/employee';
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token');
             if (!token) return;

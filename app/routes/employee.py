@@ -98,6 +98,7 @@ def add_employee():
 
     except Exception as e:
         db.session.rollback()
+        print(f"ONBOARDING ERROR: {str(e)}") # Log for debugging
         return jsonify({"error": "Failed to onboard personnel", "details": str(e)}), 500
 
 @bp.route('/verify/<int:id>', methods=['POST'])
@@ -155,7 +156,8 @@ def delete_employee(id):
         return jsonify({"msg": "Personnel profile and history purged from matrix"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Failed to purge record", "details": str(e)}), 500
+        print(f"PURGE ERROR: {str(e)}") # Log for debugging
+        return jsonify({"error": "Failed to purge record. This typically occurs if the personnel is referenced in active logs (e.g., as a reviewer or approver).", "details": str(e)}), 500
 
 @bp.route('/<int:id>/history', methods=['GET'])
 @jwt_required()
@@ -188,7 +190,7 @@ def get_employee_history(id):
         'rating': r.rating,
         'feedback': r.feedback,
         'date': r.review_date.strftime('%Y-%m-%d') if r.review_date else None
-    } for r in emp.performance_reviews]
+    } for r in emp.performance]
 
     leaves = [{
         'type': l.leave_type,

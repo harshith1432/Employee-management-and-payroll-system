@@ -66,7 +66,7 @@
 <script>
     function updateClock() {
         const now = new Date();
-        document.getElementById('clockDisplay').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+        document.getElementById('clockDisplay').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
     }
     setInterval(updateClock, 1000);
     updateClock();
@@ -93,7 +93,7 @@
                 } else {
                     inBtn.classList.add('hidden');
                     outBtn.classList.remove('hidden');
-                    statusText.innerText = `Active Since ${new Date(record.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                    statusText.innerText = `Active Since ${new Date(record.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})}`;
                 }
             } else {
                 inBtn.classList.remove('hidden');
@@ -136,8 +136,8 @@
         body.innerHTML = history.map(r => `
             <tr class="hover:bg-white/[0.01] transition-colors">
                 <td class="px-8 py-6 text-sm font-bold text-slate-400 font-mono tracking-tighter">${r.date}</td>
-                <td class="px-8 py-6 text-white font-medium">${r.clock_in ? new Date(r.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}</td>
-                <td class="px-8 py-6 text-white font-medium">${r.clock_out ? new Date(r.clock_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}</td>
+                <td class="px-8 py-6 text-white font-medium">${r.clock_in ? new Date(r.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}) : '—'}</td>
+                <td class="px-8 py-6 text-white font-medium">${r.clock_out ? new Date(r.clock_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}) : '—'}</td>
                 <td class="px-8 py-6 text-right">
                     <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${r.status === 'present' ? 'bg-teal-500/10 text-teal-400 ring-1 ring-teal-400/20' : 'bg-rose-500/10 text-rose-400 ring-1 ring-rose-400/20'}">
                         ${r.status}

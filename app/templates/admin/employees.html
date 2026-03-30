@@ -154,7 +154,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid grid-cols-3 gap-6">
                 <div class="space-y-2">
                     <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Base Salary (Annual ₹)</label>
                     <div class="relative">
@@ -162,6 +162,11 @@
                         <input type="number" id="base_salary" placeholder="500000" required 
                                class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl pl-12 pr-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
                     </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Temporary Access Key (Optional)</label>
+                    <input type="password" id="temp_password" placeholder="••••••••" 
+                           class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
                 </div>
                 <div id="roleSelectionGroup" class="space-y-2 hidden">
                     <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Personnel Primary Role</label>
@@ -277,6 +282,10 @@
                 <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Service Date</label>
                 <input type="date" id="schedDate" class="glass-input w-full p-4 text-sm font-medium bg-white/5 border-white/10 rounded-2xl text-white">
             </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Mission Task</label>
+                <textarea id="schedTask" placeholder="Detailed mission briefing..." required class="glass-input w-full p-4 text-sm font-medium bg-white/5 border-white/10 rounded-2xl text-white h-24"></textarea>
+            </div>
             <div class="flex gap-4 pt-4">
                 <button type="button" onclick="closeScheduleModal()" class="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors text-sm">Dismiss</button>
                 <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20">Commit Mission</button>
@@ -368,8 +377,13 @@
 
 <script>
     async function loadEmployees() {
+        const role = (localStorage.getItem('role') || 'employee').toLowerCase();
+        if (role === 'employee') {
+            window.location.href = '/employee';
+            return;
+        }
+
         const body = document.getElementById('employeeTableBody');
-        const role = localStorage.getItem('role');
         const addBtn = document.getElementById('addBtn');
         
         // Show Add Button based on role
@@ -585,19 +599,29 @@
 
     document.getElementById('editEmpForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const id = document.getElementById('edit_id').value;
-        const res = await fetch(`/api/employee/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-            body: JSON.stringify({
-                first_name: document.getElementById('edit_first_name').value,
-                last_name: document.getElementById('edit_last_name').value,
-                department: document.getElementById('edit_dept').value,
-                designation: document.getElementById('edit_desig').value,
-                salary_base: parseFloat(document.getElementById('edit_base_salary').value)
-            })
-        });
-        if(res.ok) { closeEditModal(); loadEmployees(); }
+        try {
+            const id = document.getElementById('edit_id').value;
+            const res = await fetch(`/api/employee/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify({
+                    first_name: document.getElementById('edit_first_name').value,
+                    last_name: document.getElementById('edit_last_name').value,
+                    department: document.getElementById('edit_dept').value,
+                    designation: document.getElementById('edit_desig').value,
+                    salary_base: parseFloat(document.getElementById('edit_base_salary').value || 0)
+                })
+            });
+            const data = await res.json();
+            if(res.ok) { 
+                closeEditModal(); 
+                loadEmployees(); 
+            } else {
+                alert(data.error || 'Mission Failed: Could not update profile');
+            }
+        } catch (err) {
+            alert('System Link Interrupted: Check your connection');
+        }
     });
 
     async function verifyEmployee(id) {
@@ -624,25 +648,41 @@
 
     document.getElementById('addEmpForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const role = localStorage.getItem('role');
-        const selectedRole = role === 'admin' ? document.getElementById('user_role').value : 'employee';
-        
-        const res = await fetch('/api/employee/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-            body: JSON.stringify({
-                emp_id: document.getElementById('emp_id').value,
-                email: document.getElementById('email').value,
-                first_name: document.getElementById('first_name').value,
-                last_name: document.getElementById('last_name').value,
-                department: document.getElementById('dept').value,
-                designation: document.getElementById('desig').value,
-                salary_base: parseFloat(document.getElementById('base_salary').value || 0),
-                role: selectedRole,
-                password: document.getElementById('temp_password').value || ""
-            })
-        });
-        if(res.ok) { closeModal(); loadEmployees(); document.getElementById('addEmpForm').reset(); }
+        try {
+            const role = localStorage.getItem('role');
+            const selectedRole = role === 'admin' ? document.getElementById('user_role').value : 'employee';
+            
+            const res = await fetch('/api/employee/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify({
+                    emp_id: document.getElementById('emp_id').value,
+                    email: document.getElementById('email').value,
+                    first_name: document.getElementById('first_name').value,
+                    last_name: document.getElementById('last_name').value,
+                    department: document.getElementById('dept').value,
+                    designation: document.getElementById('desig').value,
+                    salary_base: parseFloat(document.getElementById('base_salary').value || 0),
+                    role: selectedRole,
+                    password: document.getElementById('temp_password').value || ""
+                })
+            });
+            const data = await res.json();
+            if(res.ok) { 
+                closeModal(); 
+                loadEmployees(); 
+                document.getElementById('addEmpForm').reset();
+                if (data.verified) {
+                    alert('Deployment Successful: Personnel onboarded and verified.');
+                } else {
+                    alert('Onboarding Initiated: Personnel pending Admin verification.');
+                }
+            } else {
+                alert(data.error || 'Onboarding Refused: Personnel record already exists or invalid data.');
+            }
+        } catch (err) {
+            alert('Core Link Failure: Could not reach the authentication server.');
+        }
     });
 
     function openPerformanceModal(id, name) {
@@ -653,12 +693,21 @@
     function closePerformanceModal() { document.getElementById('perfModal').classList.add('hidden'); }
     document.getElementById('perfForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const res = await fetch(`/api/performance/review/${document.getElementById('perfEmpId').value}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-            body: JSON.stringify({ rating: parseInt(document.getElementById('rating').value), feedback: document.getElementById('feedback').value })
-        });
-        if(res.ok) closePerformanceModal();
+        try {
+            const res = await fetch(`/api/performance/review/${document.getElementById('perfEmpId').value}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify({ rating: parseInt(document.getElementById('rating').value), feedback: document.getElementById('feedback').value })
+            });
+            if(res.ok) {
+                closePerformanceModal();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Audit Failed: Could not submit review');
+            }
+        } catch (err) {
+            alert('Link Lost: Performance audit not committed');
+        }
     });
 
     function openAttModal(id, name) {
@@ -670,12 +719,21 @@
     function closeAttModal() { document.getElementById('attRegistryModal').classList.add('hidden'); }
     document.getElementById('attForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const res = await fetch('/api/attendance/mark', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-            body: JSON.stringify({ employee_id: document.getElementById('attEmpId').value, date: document.getElementById('attDate').value, status: document.getElementById('attStatus').value })
-        });
-        if(res.ok) closeAttModal();
+        try {
+            const res = await fetch('/api/attendance/mark', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify({ employee_id: document.getElementById('attEmpId').value, date: document.getElementById('attDate').value, status: document.getElementById('attStatus').value })
+            });
+            if(res.ok) {
+                closeAttModal();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Sync Refused: Attendance record already exists or invalid date');
+            }
+        } catch (err) {
+            alert('Sync Error: Could not reach central database');
+        }
     });
 
     function openScheduleModal(id, name) {
@@ -687,18 +745,27 @@
     function closeScheduleModal() { document.getElementById('schedModal').classList.add('hidden'); }
     document.getElementById('schedForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const res = await fetch('/api/schedule/assign', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-            body: JSON.stringify({ 
-                employee_id: document.getElementById('schedEmpId').value, 
-                date: document.getElementById('schedDate').value,
-                shift_start: document.getElementById('schedStart').value, 
-                shift_end: document.getElementById('schedEnd').value, 
-                task: document.getElementById('schedTask').value 
-            })
-        });
-        if(res.ok) closeScheduleModal();
+        try {
+            const res = await fetch('/api/schedule/assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify({ 
+                    employee_id: document.getElementById('schedEmpId').value, 
+                    date: document.getElementById('schedDate').value,
+                    shift_start: document.getElementById('schedStart').value, 
+                    shift_end: document.getElementById('schedEnd').value, 
+                    task: document.getElementById('schedTask').value 
+                })
+            });
+            if(res.ok) {
+                closeScheduleModal();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Mission Aborted: Conflict in scheduling or invalid parameters');
+            }
+        } catch (err) {
+            alert('Planning Error: Mission parameters not committed');
+        }
     });
 
     async function toggleStatus(id) {

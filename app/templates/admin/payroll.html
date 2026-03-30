@@ -5,7 +5,7 @@
 
 {% block content %}
 <!-- Control Panel -->
-<div class="glass-card mb-8">
+<div id="adminPayrollControls" class="glass-card mb-8">
     <div class="p-8 border-b border-[var(--border-glass)] flex flex-col md:flex-row justify-between items-center bg-[var(--bg-glass)] gap-6">
         <div>
             <h3 class="plus-jakarta text-2xl font-extrabold text-[var(--text-main)] tracking-tight">Payroll Engine</h3>
@@ -55,6 +55,12 @@
     const MONTH_NAMES = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
 
     async function fetchPayroll() {
+        const role = localStorage.getItem('role') || 'employee';
+        if (role.toLowerCase() === 'employee') {
+            const controls = document.getElementById('adminPayrollControls');
+            if (controls) controls.classList.add('hidden');
+        }
+
         const body = document.getElementById('payrollTable');
         body.innerHTML = `<tr><td colspan="4" class="px-8 py-20 text-center text-[var(--text-muted)] font-medium italic">Synchronizing financial ledger...</td></tr>`;
 
