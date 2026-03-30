@@ -1,0 +1,723 @@
+{% extends "base.html" %}
+
+{% block title %}Employees - AI HRMS{% endblock %}
+{% block header %}Employee Directory{% endblock %}
+
+{% block content %}
+<style>
+    .action-dropdown {
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        border-radius: 1.25rem;
+        z-index: 50;
+        animation: dropdownIn 0.2s ease-out;
+    }
+
+    @keyframes dropdownIn {
+        from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        width: 100%;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.025em;
+        transition: all 0.2s;
+        border-radius: 0.75rem;
+    }
+
+    .dropdown-item:hover {
+        background: rgba(99, 102, 241, 0.1);
+        color: #818cf8;
+    }
+
+    .dossier-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 1rem;
+        border-radius: 1.25rem;
+        flex: 1;
+        min-width: 100px;
+        text-align: center;
+    }
+</style>
+<div class="glass-card overflow-hidden">
+    <div class="p-8 border-b border-[var(--border-glass)] flex justify-between items-center bg-[var(--bg-glass)]">
+        <div>
+            <h3 class="text-2xl font-extrabold text-[var(--text-main)] plus-jakarta tracking-tight">Active Workforce</h3>
+            <p class="text-[var(--text-muted)] text-sm font-medium mt-1">Manage and monitor employee profiles</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <span id="roleBadge" class="hidden text-[10px] font-black uppercase px-3 py-1 rounded-full bg-teal-500/10 text-teal-500 border border-teal-500/20"></span>
+            <button id="addBtn" onclick="openModal()" class="hidden bg-teal-500 hover:bg-teal-400 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-teal-500/20 items-center gap-2">
+                <i class="fas fa-plus text-sm"></i>
+                <span id="addBtnText">Onboard personnels</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-[var(--bg-glass)] text-[var(--text-muted)] text-[10px] uppercase tracking-[0.2em] font-black">
+                    <th class="px-8 py-5">Identifier</th>
+                    <th class="px-8 py-5">Personnel</th>
+                    <th class="px-8 py-5">Division</th>
+                    <th class="px-8 py-5">Role</th>
+                    <th class="px-8 py-5 text-right">Operations</th>
+                </tr>
+            </thead>
+            <tbody id="employeeTableBody" class="text-[var(--text-main)]">
+                <!-- Rows injected via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Onboarding Modal -->
+<div id="empModal" class="fixed inset-0 bg-black/60 backdrop-blur-md hidden items-center justify-center p-6 z-[100]">
+    <div class="bg-[var(--bg-main)] p-10 rounded-[2.5rem] w-full max-w-2xl border border-[var(--border-glass)] shadow-2xl animate-in fade-in zoom-in duration-300">
+        <div class="flex justify-between items-center mb-10">
+            <div>
+                <h3 id="modalTitle" class="plus-jakarta text-3xl font-extrabold text-[var(--text-main)] tracking-tight">New Onboarding</h3>
+                <p id="modalSub" class="text-[var(--text-muted)] font-medium mt-1">Register a new personnel to the system</p>
+            </div>
+            <button onclick="closeModal()" class="w-10 h-10 rounded-full bg-[var(--bg-glass)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="addEmpForm" class="space-y-6">
+            <div class="grid grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Employee ID</label>
+                    <input type="text" id="emp_id" placeholder="EMP-001" required 
+                           class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Work Email</label>
+                    <input type="email" id="email" placeholder="name@company.ai" required 
+                           class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Given Name</label>
+                    <input type="text" id="first_name" placeholder="John" required 
+                           class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Surname</label>
+                    <input type="text" id="last_name" placeholder="Doe" required 
+                           class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Department</label>
+                    <input type="text" id="dept" placeholder="Engineering" 
+                           class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Designation</label>
+                    <select id="desig" required 
+                            class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium appearance-none">
+                        <option value="" disabled selected>Select Role</option>
+                        <option value="HR Manager">HR Manager</option>
+                        <option value="Software Engineer">Software Engineer</option>
+                        <option value="Frontend Developer">Frontend Developer</option>
+                        <option value="Backend Developer">Backend Developer</option>
+                        <option value="Full Stack Developer">Full Stack Developer</option>
+                        <option value="UI/UX Designer">UI/UX Designer</option>
+                        <option value="QA Engineer">QA Engineer</option>
+                        <option value="Project Manager">Project Manager</option>
+                        <option value="Product Manager">Product Manager</option>
+                        <option value="Data Analyst">Data Analyst</option>
+                        <option value="System Administrator">System Administrator</option>
+                        <option value="DevOps Engineer">DevOps Engineer</option>
+                        <option value="Sales Representative">Sales Representative</option>
+                        <option value="Marketing Specialist">Marketing Specialist</option>
+                        <option value="Accountant">Accountant</option>
+                        <option value="IT Support Specialist">IT Support Specialist</option>
+                        <option value="Office Administrator">Office Administrator</option>
+                        <option value="Business Analyst">Business Analyst</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Base Salary (Annual ₹)</label>
+                    <div class="relative">
+                        <span class="absolute left-6 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-bold">₹</span>
+                        <input type="number" id="base_salary" placeholder="500000" required 
+                               class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl pl-12 pr-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
+                    </div>
+                </div>
+                <div id="roleSelectionGroup" class="space-y-2 hidden">
+                    <label class="text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] ml-1">Personnel Primary Role</label>
+                    <select id="user_role" class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
+                        <option value="employee" selected>Employee</option>
+                        <option value="hr">Human Resources (HR)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end items-center gap-6 mt-8 pt-6 border-t border-[var(--border-glass)]">
+                <button type="button" onclick="closeModal()" class="text-[var(--text-muted)] hover:text-[var(--text-main)] font-bold text-sm transition-colors">Abort</button>
+                <button type="submit" class="bg-teal-500 hover:bg-teal-400 text-white px-10 py-4 rounded-2xl font-extrabold uppercase tracking-widest text-xs transition-all shadow-lg shadow-teal-500/20">
+                    Verify & Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- History Modal (360 View) -->
+<div id="historyModal" class="fixed inset-0 bg-black/60 backdrop-blur-xl hidden items-center justify-center p-6 z-[110]">
+    <div class="bg-[var(--bg-main)] rounded-[2.5rem] w-full max-w-4xl max-h-[85vh] overflow-hidden border border-[var(--border-glass)] shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
+        <div class="p-8 border-b border-[var(--border-glass)] flex justify-between items-center bg-[var(--bg-glass)]">
+            <div>
+                <h3 class="plus-jakarta text-2xl font-extrabold text-[var(--text-main)] tracking-tight">Personnel 360° History</h3>
+                <p id="historyTarget" class="text-[var(--text-muted)] font-medium mt-1 uppercase tracking-widest text-[10px]">Loading historical data...</p>
+            </div>
+            <button onclick="closeHistoryModal()" class="w-10 h-10 rounded-full bg-[var(--bg-glass)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-main)]">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
+            <!-- Attendance History -->
+            <section>
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-400">
+                        <i class="fas fa-calendar-check text-sm"></i>
+                    </div>
+                    <h4 class="text-sm font-black uppercase tracking-[0.2em] text-[var(--text-main)]">Attendance Log</h4>
+                </div>
+                <div id="attendanceHistory" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Injected via JS -->
+                </div>
+            </section>
+
+            <!-- Payroll History -->
+            <section>
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                        <i class="fas fa-money-bill-wave text-sm"></i>
+                    </div>
+                    <h4 class="text-sm font-black uppercase tracking-[0.2em] text-[var(--text-main)]">Payroll Disbursements</h4>
+                </div>
+                <div id="payrollHistory" class="space-y-3">
+                    <!-- Injected via JS -->
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<!-- No content here, removing redundant/broken modal -->
+
+<!-- Attendance Registry Modal -->
+<div id="attRegistryModal" class="fixed inset-0 bg-black/60 backdrop-blur-md hidden items-center justify-center p-6 z-[115]">
+    <div class="bg-slate-900 border border-white/10 p-10 rounded-[2.5rem] w-full max-w-md shadow-2xl">
+        <h3 class="plus-jakarta text-2xl font-black text-white mb-2">Personnel Registry</h3>
+        <p id="attTarget" class="text-teal-400 text-[10px] font-black uppercase tracking-widest mb-8">Updating Status...</p>
+        
+        <form id="attForm" class="space-y-6">
+            <input type="hidden" id="attEmpId">
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Session Date</label>
+                <input type="date" id="attDate" required class="glass-input w-full p-4 text-sm font-bold bg-white/5 border-white/10 rounded-2xl">
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Clearance Status</label>
+                <select id="attStatus" class="glass-input w-full p-4 text-sm font-bold bg-white/5 border-white/10 rounded-2xl">
+                    <option value="Present">Present</option>
+                    <option value="Absent">Absent</option>
+                    <option value="Half-Day">Half-Day</option>
+                    <option value="On Leave">On Leave</option>
+                </select>
+            </div>
+            <div class="flex gap-4 pt-4">
+                <button type="button" onclick="closeAttModal()" class="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors text-sm">Dismiss</button>
+                <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20">Sync Record</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Scheduling Modal -->
+<div id="schedModal" class="hidden fixed inset-0 z-[150] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6">
+    <div class="glass-card w-full max-w-md p-10 border-emerald-500/30">
+        <h2 class="plus-jakarta text-2xl font-black text-white mb-2">Mission Orchestrator</h2>
+        <p id="schedTarget" class="text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-8">Planning personnel shift...</p>
+        <form id="schedForm" class="space-y-6">
+            <input type="hidden" id="schedEmpId">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Start</label>
+                    <input type="time" id="schedStart" value="09:00" class="glass-input w-full p-4 text-sm font-medium bg-white/5 border-white/10 rounded-2xl">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">End</label>
+                    <input type="time" id="schedEnd" value="18:00" class="glass-input w-full p-4 text-sm font-medium bg-white/5 border-white/10 rounded-2xl">
+                </div>
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Service Date</label>
+                <input type="date" id="schedDate" class="glass-input w-full p-4 text-sm font-medium bg-white/5 border-white/10 rounded-2xl text-white">
+            </div>
+            <div class="flex gap-4 pt-4">
+                <button type="button" onclick="closeScheduleModal()" class="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors text-sm">Dismiss</button>
+                <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20">Commit Mission</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Performance Modal -->
+<div id="perfModal" class="hidden fixed inset-0 z-[150] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6">
+    <div class="glass-card w-full max-w-md p-10 border-amber-500/30">
+        <h2 class="plus-jakarta text-2xl font-black text-white mb-2">Performance Audit</h2>
+        <p id="perfEmpName" class="text-amber-400 text-[10px] font-black uppercase tracking-widest mb-8">Evaluating personnel velocity...</p>
+        <form id="perfForm" class="space-y-6">
+            <input type="hidden" id="perfEmpId">
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Rating Index</label>
+                <div class="flex justify-between bg-white/5 p-4 rounded-2xl border border-white/10">
+                    <input type="range" id="rating" min="1" max="5" value="5" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Executive Feedback</label>
+                <textarea id="feedback" rows="3" placeholder="Qualitative summary of performance..." class="glass-input w-full p-4 text-sm font-medium bg-white/5 border-white/10 rounded-2xl"></textarea>
+            </div>
+            <div class="flex gap-4 pt-4">
+                <button type="button" onclick="closePerformanceModal()" class="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors text-sm">Dismiss</button>
+                <button type="submit" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-amber-500/20">Submit Audit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Employee Modal -->
+<div id="editModal" class="hidden fixed inset-0 z-[150] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6">
+    <div class="glass-card w-full max-w-lg p-10 border-blue-500/30">
+        <h2 class="plus-jakarta text-2xl font-black text-white mb-2">Modify Personnel</h2>
+        <p class="text-blue-400 text-[10px] font-black uppercase tracking-widest mb-8">Updating profile records...</p>
+        <form id="editEmpForm" class="grid grid-cols-2 gap-6">
+            <input type="hidden" id="edit_id">
+            <div class="col-span-1">
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">First Name</label>
+                <input type="text" id="edit_first_name" required class="glass-input w-full p-4 text-sm font-medium bg-white/5 border-white/10 rounded-2xl">
+            </div>
+            <div class="col-span-1">
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Last Name</label>
+                <input type="text" id="edit_last_name" required class="glass-input w-full p-4 text-sm font-medium bg-white/5 border-white/10 rounded-2xl">
+            </div>
+            <div class="col-span-1">
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Department</label>
+                <input type="text" id="edit_dept" required class="glass-input w-full p-4 text-sm font-medium bg-white/5 border-white/10 rounded-2xl">
+            </div>
+            <div class="col-span-1 space-y-2">
+                <label class="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1 ml-1">Designation</label>
+                <select id="edit_desig" required 
+                        class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-blue-500/50 transition-all font-medium appearance-none">
+                    <option value="" disabled selected>Select Role</option>
+                    <option value="HR Manager">HR Manager</option>
+                    <option value="Software Engineer">Software Engineer</option>
+                    <option value="Frontend Developer">Frontend Developer</option>
+                    <option value="Backend Developer">Backend Developer</option>
+                    <option value="Full Stack Developer">Full Stack Developer</option>
+                    <option value="UI/UX Designer">UI/UX Designer</option>
+                    <option value="QA Engineer">QA Engineer</option>
+                    <option value="Project Manager">Project Manager</option>
+                    <option value="Product Manager">Product Manager</option>
+                    <option value="Data Analyst">Data Analyst</option>
+                    <option value="System Administrator">System Administrator</option>
+                    <option value="DevOps Engineer">DevOps Engineer</option>
+                    <option value="Sales Representative">Sales Representative</option>
+                    <option value="Marketing Specialist">Marketing Specialist</option>
+                    <option value="Accountant">Accountant</option>
+                    <option value="IT Support Specialist">IT Support Specialist</option>
+                    <option value="Office Administrator">Office Administrator</option>
+                    <option value="Business Analyst">Business Analyst</option>
+                </select>
+            </div>
+            <div class="col-span-2">
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Base Salary (₹)</label>
+                <input type="number" id="edit_base_salary" required class="glass-input w-full p-4 text-sm font-medium bg-white/5 border-white/10 rounded-2xl">
+            </div>
+            <div class="col-span-2 flex gap-4 pt-4">
+                <button type="button" onclick="closeEditModal()" class="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors text-sm">Dismiss</button>
+                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20">Save Profile</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    async function loadEmployees() {
+        const body = document.getElementById('employeeTableBody');
+        const role = localStorage.getItem('role');
+        const addBtn = document.getElementById('addBtn');
+        
+        // Show Add Button based on role
+        if (role === 'admin' || role === 'hr') {
+            addBtn.classList.remove('hidden');
+            addBtn.innerHTML = role === 'admin' ? '<i class="fas fa-plus"></i> Hire HR/Personnel' : '<i class="fas fa-plus"></i> Add Employee';
+        }
+
+        body.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-slate-500">Synchronizing...</td></tr>';
+
+        try {
+            const res = await fetch('/api/employee/', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await res.json();
+            body.innerHTML = '';
+            
+            data.forEach(emp => {
+                const row = document.createElement('tr');
+                const statusClass = emp.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400';
+                const statusLabel = emp.is_active ? 'ACTIVE' : 'INACTIVE';
+                const isPending = !emp.is_verified;
+                
+                const actions = `
+                    <div class="relative flex justify-end">
+                        <button onclick="toggleActionMenu(event, ${emp.id})" 
+                                class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 hover:border-indigo-500/50 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 flex items-center justify-center transition-all">
+                            <i class="fas fa-ellipsis-v text-xs"></i>
+                        </button>
+                        <div id="menu-${emp.id}" class="action-menu hidden absolute right-0 mt-12 w-56 p-2 action-dropdown">
+                            <button onclick="handleViewBio(${emp.id}, '${emp.emp_id}')" class="dropdown-item text-indigo-400">
+                                <i class="fas fa-fingerprint w-4 text-center"></i> Full Dossier Bio
+                            </button>
+                            <button onclick='handleEdit(${JSON.stringify(emp)})' class="dropdown-item text-blue-400">
+                                <i class="fas fa-pen w-4 text-center"></i> Modify Profile
+                            </button>
+                            <button onclick="openAttModal(${emp.id}, '${emp.name}')" class="dropdown-item text-teal-400">
+                                <i class="fas fa-check-circle w-4 text-center"></i> Log Attendance
+                            </button>
+                            <button onclick="openScheduleModal(${emp.id}, '${emp.name}')" class="dropdown-item text-emerald-400">
+                                <i class="fas fa-calendar-alt w-4 text-center"></i> Assign Mission
+                            </button>
+                            <button onclick="openPerformanceModal(${emp.id}, '${emp.name}')" class="dropdown-item text-amber-400">
+                                <i class="fas fa-star w-4 text-center"></i> Performance Audit
+                            </button>
+                            <div class="h-px bg-white/5 my-2"></div>
+                            <button onclick="handleToggleStatus(${emp.id})" class="dropdown-item text-orange-400">
+                                <i class="fas fa-power-off w-4 text-center"></i> ${emp.is_active ? 'Inactivate Access' : 'Reactivate Access'}
+                            </button>
+                            <button onclick="handleDelete(${emp.id})" class="dropdown-item text-rose-500">
+                                <i class="fas fa-trash-alt w-4 text-center"></i> Purge Record
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                row.className = "group hover:bg-white/[0.02] transition-colors border-b border-white/5";
+                row.innerHTML = `
+                    <td class="p-4"><div class="text-xs font-black text-white">${emp.emp_id}</div></td>
+                    <td class="p-4">
+                        <div class="flex items-center gap-3">
+                            <span class="w-8 h-8 rounded-xl bg-indigo-600/20 flex items-center justify-center text-[10px] font-black text-indigo-400 border border-indigo-600/30">${emp.name[0]}</span>
+                            <div class="text-sm font-bold text-slate-200">${emp.name}</div>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <div class="text-xs font-bold text-slate-400 mb-1">${emp.designation}</div>
+                        <div class="text-[9px] font-black text-slate-500 uppercase tracking-tighter">${emp.department}</div>
+                    </td>
+                    <td class="p-4">
+                        <div class="text-sm font-black text-white">₹ ${emp.salary.toLocaleString()}</div>
+                    </td>
+                    <td class="p-4">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-1 rounded-md text-[9px] font-black tracking-widest ${statusClass}">${statusLabel}</span>
+                            ${isPending ? '<button onclick="verifyEmployee('+emp.id+')" class="px-2 py-1 rounded-md text-[9px] font-black tracking-widest bg-orange-500 text-white animate-pulse">VERIFY</button>' : ''}
+                        </div>
+                    </td>
+                    <td class="p-4">${actions}</td>
+                `;
+                body.appendChild(row);
+            });
+        } catch (err) {
+            body.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-red-400">Connection Interrupted</td></tr>';
+        }
+    }
+
+    async function handleToggleStatus(id) {
+        if(!confirm("Modify personnel clearance?")) return;
+        const res = await fetch(`/api/employee/${id}/status`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+        if(res.ok) loadEmployees();
+    }
+
+    async function handleDelete(id) {
+        if (!confirm("CRITICAL: Purge personnel profile and all historical data?")) return;
+        const res = await fetch(`/api/employee/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+        if(res.ok) loadEmployees();
+    }
+
+    function toggleActionMenu(event, id) {
+        event.stopPropagation();
+        const menu = document.getElementById(`menu-${id}`);
+        const allMenus = document.querySelectorAll('.action-menu');
+        allMenus.forEach(m => { if(m !== menu) m.classList.add('hidden'); });
+        menu.classList.toggle('hidden');
+    }
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.action-menu').forEach(m => m.classList.add('hidden'));
+    });
+
+    async function handleViewBio(id, emp_id) {
+        document.getElementById('bioEmpId').innerText = emp_id;
+        const res = await fetch(`/api/employee/${id}/history`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+        const h = await res.json();
+        
+        // At-a-glance Summary Ribbon
+        const totalPresent = h.attendance.filter(a => a.status === 'Present').length;
+        const avgRating = h.performance.length ? (h.performance.reduce((acc, curr) => acc + curr.rating, 0) / h.performance.length).toFixed(1) : 'N/A';
+        const pendingLeaves = h.leaves.filter(l => l.status === 'pending').length;
+        const lastSalary = h.payroll.length ? `₹ ${h.payroll[0].net_salary.toLocaleString()}` : 'No Record';
+
+        const modal = document.getElementById('bioModal');
+        const container = document.getElementById('bioContainer');
+        container.innerHTML = `
+            <div class="grid grid-cols-4 gap-4 mb-10">
+                <div class="dossier-pill">
+                    <div class="text-[8px] uppercase font-black text-indigo-400 mb-1">Clearance</div>
+                    <div class="text-lg font-black text-white">${totalPresent} Days</div>
+                </div>
+                <div class="dossier-pill">
+                    <div class="text-[8px] uppercase font-black text-amber-400 mb-1">Avg Score</div>
+                    <div class="text-lg font-black text-white">${avgRating} ★</div>
+                </div>
+                <div class="dossier-pill">
+                    <div class="text-[8px] uppercase font-black text-emerald-400 mb-1">Last Payout</div>
+                    <div class="text-xs font-black text-white mt-1">${lastSalary}</div>
+                </div>
+                <div class="dossier-pill">
+                    <div class="text-[8px] uppercase font-black text-orange-400 mb-1">Appeals</div>
+                    <div class="text-lg font-black text-white">${pendingLeaves}</div>
+                </div>
+            </div>
+
+            <div class="flex gap-4 mb-8 overflow-x-auto pb-4 custom-scrollbar">
+                <button onclick="switchBioTab('attendance')" class="bio-tab px-6 py-2 rounded-xl text-[10px] font-black bg-indigo-600 text-white shadow-lg">ATTENDANCE</button>
+                <button onclick="switchBioTab('schedules')" class="bio-tab px-6 py-2 rounded-xl text-[10px] font-black bg-white/5 text-slate-400">MISSIONS</button>
+                <button onclick="switchBioTab('payroll')" class="bio-tab px-6 py-2 rounded-xl text-[10px] font-black bg-white/5 text-slate-400">PAYROLL</button>
+                <button onclick="switchBioTab('performance')" class="bio-tab px-6 py-2 rounded-xl text-[10px] font-black bg-white/5 text-slate-400">AUDITS</button>
+                <button onclick="switchBioTab('leaves')" class="bio-tab px-6 py-2 rounded-xl text-[10px] font-black bg-white/5 text-slate-400">LEAVES</button>
+            </div>
+            <div id="bioTabContent" class="space-y-6"></div>
+        `;
+        window.currentBio = h;
+        switchBioTab('attendance');
+        modal.classList.remove('hidden');
+    }
+
+    function switchBioTab(tab) {
+        const content = document.getElementById('bioTabContent');
+        const h = window.currentBio;
+        document.querySelectorAll('.bio-tab').forEach(b => {
+             b.classList.remove('bg-indigo-600', 'text-white', 'shadow-lg');
+             b.classList.add('bg-white/5', 'text-slate-400');
+             if(b.innerText.toLowerCase().includes(tab.slice(0,3))) {
+                 b.classList.add('bg-indigo-600', 'text-white', 'shadow-lg');
+                 b.classList.remove('bg-white/5', 'text-slate-400');
+             }
+        });
+        
+        if (tab === 'attendance') {
+            content.innerHTML = h.attendance.length ? h.attendance.map(a => `<div class="p-4 bg-white/5 rounded-2xl flex justify-between"><span>${a.date}</span><span class="${a.status === 'Present' ? 'text-emerald-400' : 'text-rose-400'} font-black text-[10px]">${a.status.toUpperCase()}</span></div>`).join('') : '<p class="text-center text-slate-500 py-10">No records</p>';
+        } else if (tab === 'schedules') {
+            content.innerHTML = h.schedules.length ? h.schedules.map(s => `<div class="p-4 bg-white/5 rounded-2xl border border-white/5"><div class="flex justify-between mb-2"><span class="text-[10px] text-indigo-400 font-black">${s.date}</span><span class="text-[8px] bg-indigo-500 px-2 rounded-full text-white">${s.status}</span></div><p class="text-sm font-bold text-white">${s.task}</p></div>`).join('') : '<p class="text-center text-slate-500 py-10">No missions</p>';
+        } else if (tab === 'payroll') {
+            content.innerHTML = h.payroll.length ? h.payroll.map(p => `<div class="p-4 bg-white/5 rounded-2xl flex justify-between items-center"><div><div class="text-xs font-black">${p.month} ${p.year}</div><div class="text-[8px] text-slate-500">${new Date(p.generated_at).toLocaleDateString()}</div></div><div class="text-right"><div class="text-emerald-400 font-black">₹ ${p.net_salary.toLocaleString()}</div><div class="text-[8px] text-slate-400 uppercase">${p.status}</div></div></div>`).join('') : '<p class="text-center text-slate-500 py-10">No history</p>';
+        } else if (tab === 'performance') {
+            content.innerHTML = h.performance.length ? h.performance.map(p => `<div class="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl"><div class="text-amber-400 text-xs mb-2">${'★'.repeat(p.rating)}${'☆'.repeat(5-p.rating)}</div><p class="text-xs italic text-slate-300">"${p.feedback}"</p></div>`).join('') : '<p class="text-center text-slate-500 py-10">No audits</p>';
+        } else if (tab === 'leaves') {
+            content.innerHTML = h.leaves.length ? h.leaves.map(l => `<div class="p-4 bg-white/5 rounded-2xl"><div class="flex justify-between mb-2"><span class="text-[10px] font-black">${l.type}</span><span class="text-[8px] px-2 py-0.5 rounded ${l.status==='approved'?'bg-emerald-500':'bg-orange-500'} text-white">${l.status.toUpperCase()}</span></div><div class="text-[10px] text-slate-400">${l.start} - ${l.end}</div></div>`).join('') : '<p class="text-center text-slate-500 py-10">No intelligence</p>';
+        }
+    }
+
+    function handleEdit(emp) {
+        document.getElementById('edit_id').value = emp.id;
+        document.getElementById('edit_first_name').value = emp.name.split(' ')[0] || '';
+        document.getElementById('edit_last_name').value = emp.name.split(' ').slice(1).join(' ') || '';
+        document.getElementById('edit_dept').value = emp.department;
+        
+        // Select the correct designation in the dropdown
+        const desigSelect = document.getElementById('edit_desig');
+        let roleFound = false;
+        for(let i = 0; i < desigSelect.options.length; i++) {
+            if(desigSelect.options[i].value === emp.designation) {
+                desigSelect.selectedIndex = i;
+                roleFound = true;
+                break;
+            }
+        }
+        if (!roleFound) {
+            // If it's a custom role, add it temporarily or select default
+            const newOption = new Option(emp.designation, emp.designation);
+            desigSelect.add(newOption);
+            desigSelect.value = emp.designation;
+        }
+
+        document.getElementById('edit_base_salary').value = emp.salary;
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() { document.getElementById('editModal').classList.add('hidden'); }
+    function closeBioModal() { document.getElementById('bioModal').classList.add('hidden'); }
+
+    document.getElementById('editEmpForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit_id').value;
+        const res = await fetch(`/api/employee/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({
+                first_name: document.getElementById('edit_first_name').value,
+                last_name: document.getElementById('edit_last_name').value,
+                department: document.getElementById('edit_dept').value,
+                designation: document.getElementById('edit_desig').value,
+                salary_base: parseFloat(document.getElementById('edit_base_salary').value)
+            })
+        });
+        if(res.ok) { closeEditModal(); loadEmployees(); }
+    });
+
+    async function verifyEmployee(id) {
+        if(!confirm('Approve this employee?')) return;
+        const res = await fetch(`/api/employee/verify/${id}`, { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+        if(res.ok) loadEmployees();
+    }
+
+    function openModal() { 
+        const role = localStorage.getItem('role');
+        if (role === 'admin') {
+            document.getElementById('roleSelectionGroup').classList.remove('hidden');
+            document.getElementById('modalTitle').innerText = "Strategic Hiring";
+            document.getElementById('modalSub').innerText = "Hire HR specialists or register personnel";
+        } else {
+            document.getElementById('roleSelectionGroup').classList.add('hidden');
+            document.getElementById('modalTitle').innerText = "New Onboarding";
+            document.getElementById('modalSub').innerText = "Register a new personnel to the system";
+        }
+        document.getElementById('empModal').classList.remove('hidden'); 
+        document.getElementById('empModal').classList.add('flex'); 
+    }
+    function closeModal() { document.getElementById('empModal').classList.add('hidden'); document.getElementById('empModal').classList.remove('flex'); }
+
+    document.getElementById('addEmpForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const role = localStorage.getItem('role');
+        const selectedRole = role === 'admin' ? document.getElementById('user_role').value : 'employee';
+        
+        const res = await fetch('/api/employee/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({
+                emp_id: document.getElementById('emp_id').value,
+                email: document.getElementById('email').value,
+                first_name: document.getElementById('first_name').value,
+                last_name: document.getElementById('last_name').value,
+                department: document.getElementById('dept').value,
+                designation: document.getElementById('desig').value,
+                salary_base: parseFloat(document.getElementById('base_salary').value || 0),
+                role: selectedRole,
+                password: document.getElementById('temp_password').value || ""
+            })
+        });
+        if(res.ok) { closeModal(); loadEmployees(); document.getElementById('addEmpForm').reset(); }
+    });
+
+    function openPerformanceModal(id, name) {
+        document.getElementById('perfEmpId').value = id;
+        document.getElementById('perfEmpName').innerText = `Evaluating ${name}`;
+        document.getElementById('perfModal').classList.remove('hidden');
+    }
+    function closePerformanceModal() { document.getElementById('perfModal').classList.add('hidden'); }
+    document.getElementById('perfForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const res = await fetch(`/api/performance/review/${document.getElementById('perfEmpId').value}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ rating: parseInt(document.getElementById('rating').value), feedback: document.getElementById('feedback').value })
+        });
+        if(res.ok) closePerformanceModal();
+    });
+
+    function openAttModal(id, name) {
+        document.getElementById('attEmpId').value = id;
+        document.getElementById('attTarget').innerText = `Sync for ${name}`;
+        document.getElementById('attDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('attRegistryModal').classList.remove('hidden');
+    }
+    function closeAttModal() { document.getElementById('attRegistryModal').classList.add('hidden'); }
+    document.getElementById('attForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const res = await fetch('/api/attendance/mark', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ employee_id: document.getElementById('attEmpId').value, date: document.getElementById('attDate').value, status: document.getElementById('attStatus').value })
+        });
+        if(res.ok) closeAttModal();
+    });
+
+    function openScheduleModal(id, name) {
+        document.getElementById('schedEmpId').value = id;
+        document.getElementById('schedTarget').innerText = `Plan for ${name}`;
+        document.getElementById('schedDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('schedModal').classList.remove('hidden');
+    }
+    function closeScheduleModal() { document.getElementById('schedModal').classList.add('hidden'); }
+    document.getElementById('schedForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const res = await fetch('/api/schedule/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ 
+                employee_id: document.getElementById('schedEmpId').value, 
+                date: document.getElementById('schedDate').value,
+                shift_start: document.getElementById('schedStart').value, 
+                shift_end: document.getElementById('schedEnd').value, 
+                task: document.getElementById('schedTask').value 
+            })
+        });
+        if(res.ok) closeScheduleModal();
+    });
+
+    async function toggleStatus(id) {
+        const res = await fetch(`/api/employee/${id}/status`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        if(res.ok) loadEmployees();
+    }
+
+    async function deleteEmployee(id) {
+        if(!confirm('CRITICAL: Purge this personnel record? All history will be lost.')) return;
+        const res = await fetch(`/api/employee/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        if(res.ok) loadEmployees();
+    }
+
+    loadEmployees();
+</script>
+{% endblock %}

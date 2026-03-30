@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}HR Dashboard | Management Portal{% endblock %}
+
+{% block header %}Operations & Verifications{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Quick Overview Stats -->
+    <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="glass-card p-6 border-l-4 border-teal-500">
+            <p class="text-xs font-bold text-slate-500 uppercase mb-2">Total Team</p>
+            <h3 class="text-3xl font-bold" id="totalEmp">0</h3>
+        </div>
+        <div class="glass-card p-6 border-l-4 border-orange-500">
+            <p class="text-xs font-bold text-slate-500 uppercase mb-2">Pending Verification</p>
+            <h3 class="text-3xl font-bold text-orange-500" id="pendingVerify">0</h3>
+        </div>
+        <div class="glass-card p-6 border-l-4 border-purple-500">
+            <p class="text-xs font-bold text-slate-500 uppercase mb-2">Leave Requests</p>
+            <h3 class="text-3xl font-bold" id="pendingLeaves">0</h3>
+        </div>
+        <div class="glass-card p-6 border-l-4 border-blue-500">
+            <p class="text-xs font-bold text-slate-500 uppercase mb-2">Present Today</p>
+            <h3 class="text-3xl font-bold" id="presentToday">0</h3>
+        </div>
+    </div>
+
+    <!-- Verification Queue -->
+    <div class="lg:col-span-2 glass-card p-8">
+        <div class="flex items-center justify-between mb-8">
+            <h3 class="plus-jakarta text-xl font-bold">New Hires Queue</h3>
+            <span class="text-xs font-bold bg-orange-500/10 text-orange-500 px-3 py-1 rounded-full uppercase tracking-widest">Action Required</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">
+                        <th class="pb-4">Employee ID</th>
+                        <th class="pb-4">Name</th>
+                        <th class="pb-4">Department</th>
+                        <th class="pb-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="verificationTable" class="text-sm">
+                    <!-- Loaded via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Leave Approvals -->
+    <div class="glass-card p-8">
+        <h3 class="plus-jakarta text-xl font-bold mb-8">Pending Leaves</h3>
+        <div class="space-y-4" id="leaveApprovalList">
+            <!-- Loaded via JS -->
+        </div>
+    </div>
+
+    <!-- Recent Attendance Logs -->
+    <div class="lg:col-span-3 glass-card p-8">
+        <div class="flex items-center justify-between mb-8">
+            <h3 class="plus-jakarta text-xl font-bold">Recent Attendance Activity</h3>
+            <a href="/attendance" class="accent-button px-4 py-2 text-xs">Mark Attendance</a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="attendanceGrid">
+            <!-- Loaded via JS -->
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadHRDashboard() {
+        const token = localStorage.getItem('token');
+        
+        // 1. Stats & Verification Queue
+        const empRes = await fetch('/api/employee/', { headers: { 'Authorization': `Bearer ${token}` } });
+        const employees = await empRes.json();
+        
+        document.getElementById('totalEmp').innerText = employees.length;
+        const unverified = employees.filter(e => !e.is_verified);
+        document.getElementById('pendingVerify').innerText = unverified.length;
+
+        const vTable = document.getElementById('verificationTable');
+        if(unverified.length === 0) {
+            vTable.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium">No new hires awaiting verification</td></tr>';
+        } else {
+            unverified.forEach(emp => {
+                vTable.innerHTML += `
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td class="py-4 font-mono text-teal-500 font-bold">${emp.emp_id}</td>
+                        <td class="py-4 font-medium">${emp.name}</td>
+                        <td class="py-4 text-slate-400">${emp.department}</td>
+                        <td class="py-4">
+                            <button onclick="verifyEmployee(${emp.id})" class="text-xs bg-teal-500/10 text-teal-500 border border-teal-500/20 px-3 py-1.5 rounded-lg font-bold hover:bg-teal-500 hover:text-white transition-all">Verify Now</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // 2. Pending Leaves
+        const leaveRes = await fetch('/api/leave/pending', { headers: { 'Authorization': `Bearer ${token}` } });
+        const pendingLeaves = await leaveRes.json();
+        document.getElementById('pendingLeaves').innerText = pendingLeaves.length;
+        
+        const lList = document.getElementById('leaveApprovalList');
+        if(pendingLeaves.length === 0) {
+            lList.innerHTML = '<p class="text-center py-6 text-slate-500 font-medium">Clear queue!</p>';
+        } else {
+            pendingLeaves.slice(0, 5).forEach(rev => {
+                lList.innerHTML += `
+                    <div class="p-4 bg-white/5 rounded-xl border border-white/5">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-teal-500 uppercase">${rev.emp_name}</span>
+                            <span class="text-[10px] text-slate-500 font-bold">${rev.type}</span>
+                        </div>
+                        <p class="text-sm font-medium mb-3">${new Date(rev.start).toLocaleDateString()} - ${new Date(rev.end).toLocaleDateString()}</p>
+                        <div class="flex space-x-2">
+                            <button onclick="handleLeave(${rev.id}, 'Approved')" class="flex-1 py-1.5 text-[10px] font-bold bg-teal-500/20 text-teal-500 rounded border border-teal-500/30 hover:bg-teal-500 hover:text-white transition-all">Approve</button>
+                            <button onclick="handleLeave(${rev.id}, 'Rejected')" class="flex-1 py-1.5 text-[10px] font-bold bg-red-500/20 text-red-500 rounded border border-red-500/30 hover:bg-red-500 hover:text-white transition-all">Reject</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 3. Stats Today
+        const statsRes = await fetch('/api/dashboard/stats', { headers: { 'Authorization': `Bearer ${token}` } });
+        const stats = await statsRes.json();
+        document.getElementById('presentToday').innerText = stats.present_today;
+    }
+
+    async function verifyEmployee(id) {
+        const res = await fetch(`/api/employee/verify/${id}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        if(res.ok) {
+            alert('Employee verified successfully!');
+            location.reload();
+        }
+    }
+
+    async function handleLeave(id, status) {
+        const res = await fetch(`/api/leave/action/${id}`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status })
+        });
+        if(res.ok) {
+            alert(`Leave ${status}!`);
+            location.reload();
+        }
+    }
+
+    loadHRDashboard();
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+Flask==3.0.2
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.5
+Flask-JWT-Extended==4.6.0
+Flask-Login==0.6.3
+Flask-BCrypt==1.0.1
+Flask-Cors==4.0.0
+python-dotenv==1.0.1
+psycopg2-binary==2.9.9
+pandas==2.2.1
+ReportLab==4.1.0
+requests==2.31.0
+Faker==24.1.0
+flask-mail==0.9.1

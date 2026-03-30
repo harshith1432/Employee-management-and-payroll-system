@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Payroll - AI HRMS{% endblock %}
+{% block header %}Financial Disbursement{% endblock %}
+
+{% block content %}
+<!-- Control Panel -->
+<div class="glass-card mb-8">
+    <div class="p-8 border-b border-[var(--border-glass)] flex flex-col md:flex-row justify-between items-center bg-[var(--bg-glass)] gap-6">
+        <div>
+            <h3 class="plus-jakarta text-2xl font-extrabold text-[var(--text-main)] tracking-tight">Payroll Engine</h3>
+            <p class="text-[var(--text-muted)] text-sm font-medium mt-1">Process and audit monthly compensation cycles</p>
+        </div>
+        
+        <div class="flex items-center gap-4 bg-[var(--bg-glass)] p-2 rounded-3xl border border-[var(--border-glass)]">
+            <select id="month" class="bg-transparent text-[var(--text-main)] text-sm font-bold px-4 py-2 outline-none border-r border-[var(--border-glass)] cursor-pointer hover:text-teal-400 transition-colors">
+                <option value="1" class="bg-[var(--bg-main)]">JANUARY</option>
+                <option value="2" class="bg-[var(--bg-main)]">FEBRUARY</option>
+                <option value="3" class="bg-[var(--bg-main)]">MARCH</option>
+                <option value="4" class="bg-[var(--bg-main)]">APRIL</option>
+                <option value="5" class="bg-[var(--bg-main)]">MAY</option>
+                <option value="6" class="bg-[var(--bg-main)]">JUNE</option>
+                <option value="7" class="bg-[var(--bg-main)]">JULY</option>
+                <option value="8" class="bg-[var(--bg-main)]">AUGUST</option>
+                <option value="9" class="bg-[var(--bg-main)]">SEPTEMBER</option>
+                <option value="10" class="bg-[var(--bg-main)]">OCTOBER</option>
+                <option value="11" class="bg-[var(--bg-main)]">NOVEMBER</option>
+                <option value="12" class="bg-[var(--bg-main)]">DECEMBER</option>
+            </select>
+            <input type="number" id="year" value="2026" class="bg-transparent text-[var(--text-main)] text-sm font-bold px-4 py-2 outline-none w-20 cursor-pointer hover:text-teal-400 transition-colors">
+            <button id="generateBtn" class="bg-teal-500 hover:bg-teal-400 text-white px-6 py-2 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg shadow-teal-500/20 active:scale-95">
+                Run Cycle
+            </button>
+        </div>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-glass)] bg-[var(--bg-glass)]">
+                    <th class="px-8 py-5">Temporal Index</th>
+                    <th class="px-8 py-5">Status</th>
+                    <th class="px-8 py-5">Total Disbursement</th>
+                    <th class="px-8 py-5 text-right">Audit Trails</th>
+                </tr>
+            </thead>
+            <tbody id="payrollTable" class="text-[var(--text-main)] divide-y divide-[var(--border-glass)]">
+                <!-- History rows injected via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const MONTH_NAMES = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+
+    async function fetchPayroll() {
+        const body = document.getElementById('payrollTable');
+        body.innerHTML = `<tr><td colspan="4" class="px-8 py-20 text-center text-[var(--text-muted)] font-medium italic">Synchronizing financial ledger...</td></tr>`;
+
+        try {
+            const res = await fetch('/api/payroll/history', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await res.json();
+            body.innerHTML = '';
+            
+            if (data.length === 0) {
+                body.innerHTML = `<tr><td colspan="4" class="px-8 py-20 text-center text-[var(--text-muted)] font-medium">No payroll cycles initiated.</td></tr>`;
+                return;
+            }
+
+            data.forEach(p => {
+                body.innerHTML += `
+                    <tr class="group hover:bg-[var(--bg-glass)] transition-colors border-b border-[var(--border-glass)]">
+                        <td class="px-8 py-6">
+                            <div class="flex flex-col">
+                                <span class="text-[var(--text-main)] font-bold text-sm tracking-tight">${MONTH_NAMES[p.month-1]}</span>
+                                <span class="text-[var(--text-muted)] text-xs font-medium tracking-widest">${p.year}</span>
+                            </div>
+                        </td>
+                        <td class="px-8 py-6">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-teal-500/10 text-teal-400 ring-1 ring-teal-400/20">
+                                ${p.status}
+                            </span>
+                        </td>
+                        <td class="px-8 py-6">
+                            <span class="text-[var(--text-main)] font-mono font-bold tracking-tighter text-lg">₹ ${p.net_salary.toLocaleString()}</span>
+                        </td>
+                        <td class="px-8 py-6 text-right">
+                            <button onclick="downloadSlip(${p.id})" class="p-3 rounded-xl bg-[var(--bg-glass)] text-[var(--text-muted)] hover:bg-teal-500/20 hover:text-teal-400 transition-all opacity-0 group-hover:opacity-100 flex items-center gap-2 ml-auto">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest">Payslip</span>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (err) {
+            body.innerHTML = `<tr><td colspan="4" class="px-8 py-20 text-center text-red-400 font-medium uppercase tracking-widest">Ledger Sync Error</td></tr>`;
+        }
+    }
+
+    async function downloadSlip(id) {
+        const res = await fetch(`/api/report/salary-slip/${id}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (res.ok) {
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `PAYSLIP_AI_HRMS_${id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+        const month = document.getElementById('month').value;
+        const year = document.getElementById('year').value;
+        const btn = document.getElementById('generateBtn');
+        
+        btn.innerText = "PROCESSING CYCLE...";
+        btn.disabled = true;
+        btn.classList.replace('bg-teal-500', 'bg-slate-700');
+        
+        try {
+            await fetch('/api/payroll/generate', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ month, year })
+            });
+        } catch (err) {
+            alert("CYCLE FAILED: PROTOCOL REJECTED");
+        } finally {
+            btn.innerText = "RUN CYCLE";
+            btn.disabled = false;
+            btn.classList.replace('bg-slate-700', 'bg-teal-500');
+            fetchPayroll();
+        }
+    });
+
+    fetchPayroll();
+</script>
+{% endblock %}

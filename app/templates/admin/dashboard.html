@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - AI HRMS{% endblock %}
+{% block header %}Overview Dashboard{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+    <!-- Stats Cards -->
+    <div class="glass-card p-8 group">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Workforce</p>
+                <h3 class="plus-jakarta text-4xl font-extrabold text-white" id="totalEmployees">0</h3>
+            </div>
+            <div class="p-4 bg-teal-500/10 rounded-2xl border border-teal-500/20 group-hover:bg-teal-500/20 transition-all">
+                <i class="fas fa-users text-teal-400 text-2xl"></i>
+            </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs font-medium text-emerald-400">
+            <i class="fas fa-arrow-up mr-1"></i>
+            <span>Active headcount</span>
+        </div>
+    </div>
+
+    <div class="glass-card p-8 group">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Monthly Payroll</p>
+                <h3 class="plus-jakarta text-4xl font-extrabold text-white" id="totalPayroll">₹0</h3>
+            </div>
+            <div class="p-4 bg-purple-500/10 rounded-2xl border border-purple-500/20 group-hover:bg-purple-500/20 transition-all">
+                <i class="fas fa-money-check-alt text-purple-400 text-2xl"></i>
+            </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs font-medium text-purple-400">
+            <i class="fas fa-receipt mr-1"></i>
+            <span>Operational expense</span>
+        </div>
+    </div>
+
+    <div class="glass-card p-8 group">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Present Today</p>
+                <h3 class="plus-jakarta text-4xl font-extrabold text-white" id="presentToday">0</h3>
+            </div>
+            <div class="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 group-hover:bg-blue-500/20 transition-all">
+                <i class="fas fa-calendar-alt text-blue-400 text-2xl"></i>
+            </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs font-medium text-blue-400">
+            <i class="fas fa-check-circle mr-1"></i>
+            <span>Real-time attendance</span>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="glass-card p-8 group h-[450px] flex flex-col">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h3 class="plus-jakarta text-xl font-bold text-white tracking-tight">Departmental Scale</h3>
+                <p class="text-xs text-slate-500 font-medium">Headcount distribution by sector</p>
+            </div>
+            <div class="w-10 h-10 bg-teal-500/10 rounded-xl flex items-center justify-center border border-teal-500/20">
+                <i class="fas fa-chart-pie text-teal-400"></i>
+            </div>
+        </div>
+        <div class="flex-1 relative min-h-0">
+            <canvas id="deptChart"></canvas>
+        </div>
+    </div>
+
+    <div class="glass-card p-8 group h-[450px] flex flex-col">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h3 class="plus-jakarta text-xl font-bold text-white tracking-tight">Attendance Momentum</h3>
+                <p class="text-xs text-slate-500 font-medium">Weekly participation metrics</p>
+            </div>
+            <div class="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/20">
+                <i class="fas fa-chart-line text-purple-400"></i>
+            </div>
+        </div>
+        <div class="flex-1 relative min-h-0">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadStats() {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const res = await fetch('/api/dashboard/stats', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Failed to fetch stats');
+            const data = await res.json();
+            
+            document.getElementById('totalEmployees').innerText = data.total_employees || 0;
+            document.getElementById('totalPayroll').innerText = `₹${(data.total_payroll_expense || 0).toLocaleString()}`;
+            document.getElementById('presentToday').innerText = data.present_today || 0;
+            
+            // Render Dept Chart
+            const deptCtx = document.getElementById('deptChart');
+            if (deptCtx && data.department_distribution) {
+                new Chart(deptCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(data.department_distribution),
+                        datasets: [{
+                            data: Object.values(data.department_distribution),
+                            backgroundColor: ['#0D9488', '#14B8A6', '#2DD4BF', '#F59E0B', '#F43F5E'],
+                            borderWidth: 0,
+                            hoverOffset: 20
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { 
+                                    color: '#94a3b8', 
+                                    font: { family: 'Inter', size: 11, weight: '600' }, 
+                                    usePointStyle: true, 
+                                    padding: 25 
+                                }
+                            }
+                        },
+                        cutout: '78%'
+                    }
+                });
+            }
+
+            // Render Trend Chart
+            const trendCtx = document.getElementById('trendChart');
+            if (trendCtx && data.attendance_trend) {
+                new Chart(trendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: data.attendance_trend.map(t => t.date),
+                        datasets: [{
+                            label: 'Present',
+                            data: data.attendance_trend.map(t => t.count),
+                            borderColor: '#8B5CF6',
+                            borderWidth: 4,
+                            backgroundColor: (context) => {
+                                const ctx = context.chart.ctx;
+                                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                                gradient.addColorStop(0, 'rgba(139, 92, 246, 0.3)');
+                                gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+                                return gradient;
+                            },
+                            fill: true,
+                            tension: 0.45,
+                            pointBackgroundColor: '#8B5CF6',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 3,
+                            pointRadius: 5,
+                            pointHoverRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
+                                ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }
+                            },
+                            x: { 
+                                grid: { display: false },
+                                ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (err) {
+            console.error('Dashboard Error:', err);
+        }
+    }
+    
+    loadStats();
+</script>
+{% endblock %}

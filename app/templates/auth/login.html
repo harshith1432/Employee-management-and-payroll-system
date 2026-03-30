@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | AI HRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #0D9488;
+            --primary-glow: rgba(13, 148, 136, 0.4);
+            --bg-deep: #020617;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-deep); color: #f8fafc; }
+        .plus-jakarta { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass-container {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .input-glass {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .input-glass:focus {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #0D9488 0%, #065F46 100%);
+            box-shadow: 0 10px 20px -10px var(--primary-glow);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -10px var(--primary-glow);
+            filter: brightness(1.1);
+        }
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: -1;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen overflow-hidden relative">
+    <!-- Animated Background Orbs -->
+    <div class="orb w-[500px] h-[500px] bg-teal-500/10 top-[-100px] right-[-100px]"></div>
+    <div class="orb w-[400px] h-[400px] bg-purple-500/5 bottom-[-50px] left-[-50px]"></div>
+
+    <div class="glass-container p-12 rounded-[2.5rem] w-full max-w-md relative z-10 border border-white/5">
+        <div class="text-center mb-12">
+            <div class="w-16 h-16 bg-teal-500/20 rounded-2xl flex items-center justify-center border border-teal-500/30 mx-auto mb-6">
+                <i class="fas fa-brain text-teal-400 text-3xl"></i>
+            </div>
+            <h1 class="plus-jakarta text-4xl font-extrabold text-white tracking-tight mb-2">Sign In</h1>
+            <p class="text-slate-400 font-medium">Precision Management Awaits</p>
+        </div>
+        
+        <form id="loginForm" class="space-y-6">
+            <div class="space-y-2">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Work Email</label>
+                <div class="relative">
+                    <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                    <input type="email" id="email" required placeholder="name@company.com" 
+                           class="input-glass w-full pl-12 pr-4 py-4 rounded-2xl text-white outline-none placeholder:text-slate-600">
+                </div>
+            </div>
+            <div class="space-y-2">
+                <div class="flex items-center justify-between ml-1">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest">Secret Key</label>
+                    <a href="#" class="text-[10px] font-bold text-teal-500 uppercase tracking-widest hover:text-teal-400">Recovery?</a>
+                </div>
+                <div class="relative">
+                    <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                    <input type="password" id="password" required placeholder="••••••••" 
+                           class="input-glass w-full pl-12 pr-4 py-4 rounded-2xl text-white outline-none placeholder:text-slate-600">
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-primary w-full py-4 rounded-2xl text-white font-extrabold uppercase tracking-widest text-sm mt-4">
+                Access System
+            </button>
+        </form>
+        
+        <div id="errorBox" class="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl hidden">
+            <p id="errorMsg" class="text-red-400 text-xs font-bold text-center"></p>
+        </div>
+
+        <div class="mt-10 pt-10 border-t border-white/5 text-center">
+            <p class="text-slate-400 text-sm font-medium">
+                New to the platform? 
+                <a href="/register" class="text-teal-500 font-bold hover:text-teal-400 ml-1 transition-colors">Apply for Access</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorBox = document.getElementById('errorBox');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    // Store metadata
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('role', data.role);
+                    localStorage.setItem('userEmail', email); // For profile display
+                    
+                    // Force Password Reset if flag is set
+                    if (data.must_change_password) {
+                        window.location.href = '/reset-password';
+                        return;
+                    }
+                    
+                    // Role-based redirection
+                    if (data.role === 'admin') {
+                        window.location.href = '/';
+                    } else if (data.role === 'hr') {
+                        window.location.href = '/hr';
+                    } else if (data.role === 'employee') {
+                        window.location.href = '/employee';
+                    } else {
+                        window.location.href = '/';
+                    }
+                } else {
+                    errorMsg.innerText = data.msg.toUpperCase();
+                    errorBox.classList.remove('hidden');
+                }
+            } catch (err) {
+                errorMsg.innerText = "CRITICAL: CONNECTION INTERRUPTED";
+                errorBox.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

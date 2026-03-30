@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Dashboard | My HRMS{% endblock %}
+
+{% block header %}My Professional Portal{% endblock %}
+
+{% block content %}
+<div id="verificationShield" class="hidden fixed inset-0 z-[200] bg-slate-900 flex items-center justify-center p-6 text-center">
+    <div class="glass-card max-w-lg p-12 border-orange-500/30 bg-orange-500/5">
+        <div class="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-8">
+            <i class="fas fa-shield-alt text-orange-500 text-3xl animate-pulse"></i>
+        </div>
+        <h2 class="plus-jakarta text-3xl font-black text-white mb-4 tracking-tight">Security Clearance Pending</h2>
+        <p class="text-slate-400 font-medium leading-relaxed mb-8">Your profile is currently undergoing verification by the HR specialist team. Access to the operational dashboard will be granted once your credentials are validated.</p>
+        <div class="flex flex-col gap-3">
+            <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                <div class="h-full bg-orange-500 w-2/3 animate-progress"></div>
+            </div>
+            <span class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/50">System sync in progress</span>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8" id="dashboardContent">
+    <!-- Quick Stats -->
+    <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div class="glass-card p-6 flex flex-col items-center justify-center text-center">
+            <div class="w-12 h-12 bg-teal-500/20 rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-calendar-check text-teal-500 text-xl"></i>
+            </div>
+            <h3 class="text-3xl font-bold mb-1" id="daysPresent">0</h3>
+            <p class="text-sm text-slate-400 font-medium">Days Present</p>
+        </div>
+        <div class="glass-card p-6 flex flex-col items-center justify-center text-center">
+            <div class="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-plane-departure text-purple-500 text-xl"></i>
+            </div>
+            <h3 class="text-3xl font-bold mb-1" id="leavesUsed">0</h3>
+            <p class="text-sm text-slate-400 font-medium">Leaves Taken</p>
+        </div>
+        <div class="glass-card p-6 flex flex-col items-center justify-center text-center">
+            <div class="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-indian-rupee-sign text-orange-500 text-xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-1" id="lastSalary">₹ 0</h3>
+            <p class="text-sm text-slate-400 font-medium">Last Salary</p>
+        </div>
+        <div class="glass-card p-6 flex flex-col items-center justify-center text-center group cursor-pointer hover:bg-indigo-500/10 transition-all border border-indigo-500/20" onclick="showLeaveModal()">
+            <div class="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <i class="fas fa-paper-plane text-indigo-500 text-xl"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-1">Apply for Leave</h3>
+            <p class="text-xs text-slate-400 font-medium">Request time off</p>
+        </div>
+    </div>
+
+    <!-- Attendance Card -->
+    <div class="glass-card p-8 flex flex-col items-center justify-center text-center bg-teal-500/5 border-teal-500/20">
+        <h3 class="plus-jakarta text-xl font-bold mb-6">Daily Attendance</h3>
+        <div class="relative w-32 h-32 mb-6">
+            <svg class="w-full h-full transform -rotate-90">
+                <circle cx="64" cy="64" r="58" stroke="currentColor" stroke-width="8" fill="transparent" class="text-slate-800" />
+                <circle cx="64" cy="64" r="58" stroke="currentColor" stroke-width="8" fill="transparent" stroke-dasharray="364.4" stroke-dashoffset="100" class="text-teal-500" id="attendanceProgress" />
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-2xl font-bold" id="attendancePercent">0%</span>
+            </div>
+        </div>
+        <button id="clockInBtn" class="accent-button w-full py-4 flex items-center justify-center space-x-3">
+            <i class="fas fa-fingerprint"></i>
+            <span>Punch In Now</span>
+        </button>
+    </div>
+
+    <!-- Today's Schedule -->
+    <div class="glass-card p-8 bg-emerald-500/5 border-emerald-500/20">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                <i class="fas fa-tasks"></i>
+            </div>
+            <h3 class="plus-jakarta text-lg font-bold">Today's Agenda</h3>
+        </div>
+        <div id="scheduleContainer" class="space-y-4">
+            <div class="py-10 text-center text-slate-500 italic text-sm">Synchronizing your tasks...</div>
+        </div>
+    </div>
+
+    <!-- Recent Activity & Performance -->
+    <div class="lg:col-span-2 glass-card p-8">
+        <div class="flex items-center justify-between mb-8">
+            <h3 class="plus-jakarta text-xl font-bold">Attendance History</h3>
+            <a href="/attendance" class="text-sm font-bold text-teal-500 hover:text-teal-400 transition-colors">View All</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">
+                        <th class="pb-4">Date</th>
+                        <th class="pb-4">Clock In</th>
+                        <th class="pb-4">Clock Out</th>
+                        <th class="pb-4">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceHistory" class="text-sm">
+                    <!-- Loaded via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Performance Hub -->
+    <div class="glass-card p-8 bg-amber-500/5 border-amber-500/20">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h3 class="plus-jakarta text-lg font-bold">Performance Pulse</h3>
+        </div>
+        <div id="performanceContainer" class="space-y-4">
+            <div class="py-10 text-center text-slate-500 italic text-sm">Aggregating reviews...</div>
+        </div>
+    </div>
+
+    <!-- Leave Status -->
+    <div class="glass-card p-8 bg-indigo-500/5 border-indigo-500/20">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                <i class="fas fa-clock"></i>
+            </div>
+            <h3 class="plus-jakarta text-lg font-bold">Recent Leave Requests</h3>
+        </div>
+        <div id="leaveList" class="space-y-4">
+            <!-- Loaded via JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Leave Modal -->
+<div id="leaveModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-6">
+    <div class="glass-card w-full max-w-md p-8 bg-slate-900">
+        <h3 class="plus-jakarta text-2xl font-bold mb-6">Apply for Leave</h3>
+        <form id="leaveForm" class="space-y-6">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Leave Type</label>
+                <select name="leave_type" class="glass-input w-full p-4 bg-white/5">
+                    <option value="Sick">Sick Leave</option>
+                    <option value="Casual">Casual Leave</option>
+                    <option value="Earned">Earned Leave</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Start Date</label>
+                    <input type="date" name="start_date" class="glass-input w-full p-4 bg-white/5" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">End Date</label>
+                    <input type="date" name="end_date" class="glass-input w-full p-4 bg-white/5" required>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Reason</label>
+                <textarea name="reason" rows="3" class="glass-input w-full p-4 bg-white/5" placeholder="Short description..."></textarea>
+            </div>
+            <div class="flex space-x-4">
+                <button type="button" onclick="hideLeaveModal()" class="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
+                <button type="submit" class="accent-button flex-1 py-4">Submit Request</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    async function loadDashboard() {
+        const attRes = await fetch('/api/attendance/history', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const history = await attRes.json();
+        
+        // Verification Check
+        const profileRes = await fetch('/api/employee/me', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const profile = await profileRes.json();
+        
+        if (!profile.is_verified) {
+            document.getElementById('verificationShield').classList.remove('hidden');
+            document.getElementById('dashboardContent').classList.add('blur-xl', 'pointer-events-none');
+        }
+
+        const tbody = document.getElementById('attendanceHistory');
+        
+        let presentCount = 0;
+        history.slice(0, 5).forEach(att => {
+            if(att.status === 'Present') presentCount++;
+            const row = `
+                <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <td class="py-4 font-medium">${new Date(att.date).toLocaleDateString()}</td>
+                    <td class="py-4 text-slate-400">${att.clock_in ? new Date(att.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--'}</td>
+                    <td class="py-4 text-slate-400">${att.clock_out ? new Date(att.clock_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--'}</td>
+                    <td class="py-4">
+                        <span class="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${att.status === 'Present' ? 'bg-teal-500/10 text-teal-500' : 'bg-red-500/10 text-red-500'}">
+                            ${att.status}
+                        </span>
+                    </td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+
+        document.getElementById('daysPresent').innerText = history.filter(a => a.status === 'Present').length;
+        
+        // Attendance Percent (Dummy Month Logic)
+        const percent = Math.round((history.filter(a => a.status === 'Present').length / 22) * 100);
+        document.getElementById('attendancePercent').innerText = `${Math.min(percent, 100)}%`;
+        document.getElementById('attendanceProgress').style.strokeDashoffset = 364.4 - (364.4 * Math.min(percent, 100) / 100);
+
+        // Leaves
+        const leaveRes = await fetch('/api/leave/my-requests', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const leaves = await leaveRes.json();
+        document.getElementById('leavesUsed').innerText = leaves.filter(l => l.status === 'Approved').length;
+        
+        const leaveList = document.getElementById('leaveList');
+        leaves.slice(0, 3).forEach(l => {
+            leaveList.innerHTML += `
+                <div class="p-4 bg-white/5 rounded-xl border border-white/5">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs font-bold uppercase text-teal-500">${l.type}</span>
+                        <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/10 ${l.status === 'Approved' ? 'text-teal-500' : 'text-orange-500'}">${l.status}</span>
+                    </div>
+                    <p class="text-sm font-medium">${new Date(l.start).toLocaleDateString()} - ${new Date(l.end).toLocaleDateString()}</p>
+                </div>
+            `;
+        });
+
+        // Payroll
+        const payRes = await fetch('/api/payroll/history', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const payroll = await payRes.json();
+        if(payroll.length > 0) {
+            document.getElementById('lastSalary').innerText = `₹ ${Math.round(payroll[0].net_salary).toLocaleString()}`;
+        }
+
+        // Schedule
+        const schedRes = await fetch('/api/schedule/my', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const schedules = await schedRes.json();
+        const schedContainer = document.getElementById('scheduleContainer');
+        schedContainer.innerHTML = '';
+        
+        if (schedules.length === 0) {
+            schedContainer.innerHTML = '<div class="p-6 bg-white/5 rounded-2xl border border-dashed border-white/10 text-center text-slate-500 text-xs">No tasks assigned for today. Enjoy your shift!</div>';
+        } else {
+            schedules.forEach(s => {
+                schedContainer.innerHTML += `
+                    <div class="p-5 bg-white/5 rounded-2xl border border-white/10 hover:border-emerald-500/50 transition-all cursor-pointer group">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">${s.shift_start} - ${s.shift_end}</span>
+                            <span class="text-[8px] font-black uppercase tracking-widest bg-emerald-500 text-white px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/20">${s.status}</span>
+                        </div>
+                        <p class="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">${s.task || 'General Duties'}</p>
+                `;
+            });
+        }
+
+        // Performance
+        const perfRes = await fetch('/api/performance/my', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const performance = await perfRes.json();
+        const perfContainer = document.getElementById('performanceContainer');
+        perfContainer.innerHTML = '';
+        
+        if (performance.length === 0) {
+            perfContainer.innerHTML = '<div class="p-6 bg-white/5 rounded-2xl border border-dashed border-white/10 text-center text-slate-500 text-xs italic">No performance benchmarks observed in this cycle.</div>';
+        } else {
+            performance.forEach(p => {
+                const stars = '★'.repeat(p.rating) + '☆'.repeat(5 - p.rating);
+                perfContainer.innerHTML += `
+                    <div class="p-5 bg-white/5 rounded-2xl border border-white/10">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="text-amber-400 text-sm tracking-widest">${stars}</div>
+                            <span class="text-[8px] font-black uppercase text-slate-500 tracking-tighter">${new Date(p.date).toLocaleDateString()}</span>
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed font-medium">"${p.feedback}"</p>
+                    </div>
+                `;
+            });
+        }
+    }
+
+    function showLeaveModal() { document.getElementById('leaveModal').classList.remove('hidden'); }
+    function hideLeaveModal() { document.getElementById('leaveModal').classList.add('hidden'); }
+
+    document.getElementById('clockInBtn').addEventListener('click', async () => {
+        const res = await fetch('/api/attendance/clock-in', {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ location: 'Remote' })
+        });
+        const data = await res.json();
+        alert(data.msg);
+        location.reload();
+    });
+
+    document.getElementById('leaveForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const res = await fetch('/api/leave/apply', {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(Object.fromEntries(formData))
+        });
+        if(res.ok) {
+            alert('Leave request submitted!');
+            hideLeaveModal();
+            location.reload();
+        }
+    });
+
+    loadDashboard();
+</script>
+{% endblock %}

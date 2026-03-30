@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Leaves - AI HRMS{% endblock %}
+{% block header %}Absence Management{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <!-- Apply Leave Form -->
+    <div class="lg:col-span-4 lg:sticky lg:top-8 h-fit">
+        <div class="glass-card p-8 relative overflow-hidden group">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-teal-500/10 transition-all"></div>
+            
+            <h3 class="plus-jakarta text-2xl font-extrabold text-[var(--text-main)] tracking-tight mb-8 flex items-center gap-3">
+                <i class="fas fa-calendar-plus text-teal-500 text-xl"></i>
+                Request Absence
+            </h3>
+            
+            <form id="leaveForm" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Protocol Type</label>
+                    <select id="leave_type" class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium appearance-none">
+                        <option class="bg-[var(--bg-main)]">SICK LEAVE</option>
+                        <option class="bg-[var(--bg-main)]">CASUAL LEAVE</option>
+                        <option class="bg-[var(--bg-main)]">PAID LEAVE</option>
+                        <option class="bg-[var(--bg-main)]">EMERGENCY LEAVE</option>
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Commencement</label>
+                        <input type="date" id="start_date" required class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Conclusion</label>
+                        <input type="date" id="end_date" required class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium">
+                    </div>
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Contextual Reasoning</label>
+                    <textarea id="reason" rows="4" class="w-full bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl px-6 py-4 text-[var(--text-main)] outline-none focus:border-teal-500/50 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium resize-none" placeholder="Elaborate on the necessity of this absence..."></textarea>
+                </div>
+                
+                <button type="submit" class="w-full bg-gradient-to-br from-teal-500 to-teal-700 text-white py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-teal-500/20 flex items-center justify-center gap-3 mt-4">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Transmit Request</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lists -->
+    <div class="lg:col-span-8 flex flex-col gap-8">
+        <!-- Personal Requests -->
+        <div class="glass-card flex flex-col h-fit">
+            <div class="p-8 border-b border-[var(--border-glass)] flex justify-between items-center bg-[var(--bg-glass)]">
+                <h3 class="plus-jakarta text-xl font-extrabold text-[var(--text-main)] tracking-tight">Active Transmissions</h3>
+                <span class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">My Workflow</span>
+            </div>
+            <div id="myRequests" class="p-6 space-y-4">
+                <!-- Request Cards Injected -->
+            </div>
+        </div>
+        
+        <!-- HR Approvals -->
+        <div id="pendingSection" class="glass-container p-8 rounded-[2rem] border border-teal-500/30 bg-teal-500/[0.02] shadow-2xl shadow-teal-900/10 hidden">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h3 class="plus-jakarta text-xl font-extrabold text-[var(--text-main)] tracking-tight">Approval Queue</h3>
+                    <p class="text-[10px] font-black text-teal-500 uppercase tracking-widest mt-1">HR Clearance Required</p>
+                </div>
+                <div class="w-10 h-10 bg-teal-500/10 rounded-xl flex items-center justify-center border border-teal-500/20">
+                    <i class="fas fa-shield-alt text-teal-400 text-lg"></i>
+                </div>
+            </div>
+            <div id="pendingRequests" class="space-y-4">
+                <!-- HR View -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadLeaves() {
+        const role = localStorage.getItem('role');
+        const token = localStorage.getItem('token');
+        
+        try {
+            // Load personal requests
+            const res = await fetch('/api/leave/my-requests', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const myRequests = await res.json();
+            const myContainer = document.getElementById('myRequests');
+            
+            if (myRequests.length === 0) {
+                myContainer.innerHTML = `<div class="py-12 text-center text-slate-500 font-medium lowercase italic">No active requests detected in your log.</div>`;
+            } else {
+                myContainer.innerHTML = myRequests.map(r => `
+                    <div class="group flex justify-between items-center p-6 bg-white/[0.02] border border-white/5 rounded-[1.5rem] hover:bg-white/[0.04] transition-all">
+                        <div class="flex items-center gap-6">
+                            <div class="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                                <i class="fas fa-calendar-alt text-slate-400"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-white tracking-tight text-lg">${r.type.toUpperCase()}</p>
+                                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">${r.start} <i class="fas fa-arrow-right mx-1 text-[8px]"></i> ${r.end}</p>
+                            </div>
+                        </div>
+                        <span class="px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ring-1 ${r.status === 'approved' ? 'bg-teal-500/10 text-teal-400 ring-teal-400/20' : r.status === 'rejected' ? 'bg-rose-500/10 text-rose-400 ring-rose-400/20' : 'bg-amber-500/10 text-amber-400 ring-amber-400/20'}">
+                            ${r.status}
+                        </span>
+                    </div>
+                `).join('');
+            }
+
+            // Load HR pending if admin/hr
+            if (role === 'admin' || role === 'hr') {
+                const pendingSec = document.getElementById('pendingSection');
+                pendingSec.classList.remove('hidden');
+                
+                const pRes = await fetch('/api/leave/pending', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const pending = await pRes.json();
+                const pendingContainer = document.getElementById('pendingRequests');
+                
+                if (pending.length === 0) {
+                    pendingContainer.innerHTML = `<div class="py-8 text-center text-teal-500/50 font-medium italic text-sm">The queue is currently clear.</div>`;
+                } else {
+                    pendingContainer.innerHTML = pending.map(r => `
+                        <div class="p-8 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:bg-white/[0.07] transition-all group">
+                            <div class="flex items-center gap-6">
+                                <div class="w-14 h-14 bg-teal-500/10 rounded-2xl flex items-center justify-center text-teal-400 text-xl font-black border border-teal-500/20">
+                                    ${r.emp_name[0]}
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-white text-xl tracking-tight">${r.emp_name}</h4>
+                                    <div class="flex items-center gap-3 mt-1">
+                                        <span class="text-[10px] font-black text-teal-500 uppercase tracking-widest">${r.type}</span>
+                                        <span class="w-1.5 h-1.5 bg-white/10 rounded-full"></span>
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">${r.start} — ${r.end}</span>
+                                    </div>
+                                    <p class="text-xs font-medium italic text-slate-400 mt-3 bg-black/20 p-3 rounded-xl border border-white/5 opacity-80 group-hover:opacity-100 transition-opacity">"${r.reason}"</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 w-full md:w-auto">
+                                <button onclick="takeAction(${r.id}, 'approved')" class="flex-1 md:flex-none h-12 w-12 bg-teal-500 hover:bg-teal-400 text-white rounded-xl shadow-lg shadow-teal-500/20 flex items-center justify-center transition-all">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button onclick="takeAction(${r.id}, 'rejected')" class="flex-1 md:flex-none h-12 w-12 bg-rose-500 hover:bg-rose-400 text-white rounded-xl shadow-lg shadow-rose-500/20 flex items-center justify-center transition-all">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        } catch (err) {
+            console.error("Transmission Error:", err);
+        }
+    }
+
+    async function takeAction(id, status) {
+        try {
+            await fetch(`/api/leave/action/${id}`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ status })
+            });
+            loadLeaves();
+        } catch (err) {
+            alert("PROTOCOL REJECTED");
+        }
+    }
+
+    document.getElementById('leaveForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = {
+            leave_type: document.getElementById('leave_type').value,
+            start_date: document.getElementById('start_date').value,
+            end_date: document.getElementById('end_date').value,
+            reason: document.getElementById('reason').value
+        };
+        
+        try {
+            const res = await fetch('/api/leave/apply', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                document.getElementById('leaveForm').reset();
+                loadLeaves();
+            }
+        } catch (err) {
+            alert("TRANSMISSION ERROR");
+        }
+    });
+
+    loadLeaves();
+</script>
+{% endblock %}

@@ -1,0 +1,89 @@
+import calendar
+from datetime import date
+from app.models.core import Attendance, LeaveRequest
+
+class PayrollService:
+    @staticmethod
+    def calculate_net_salary(employee, month, year, bonuses=0):
+        basic_monthly = employee.salary_base
+        num_days = calendar.monthrange(year, month)[1]
+        daily_rate = basic_monthly / num_days
+        
+        # Calculate Working Days (Present or Approved Leave)
+        start_date = date(year, month, 1)
+        end_date = date(year, month, num_days)
+        
+        present_days = Attendance.query.filter(
+            Attendance.employee_id == employee.id,
+            Attendance.date >= start_date,
+            Attendance.date <= end_date,
+            Attendance.status == 'Present'
+        ).count()
+        
+        approved_leaves = LeaveRequest.query.filter(
+            LeaveRequest.employee_id == employee.id,
+            LeaveRequest.start_date <= end_date,
+            LeaveRequest.end_date >= start_date,
+            LeaveRequest.status == 'Approved'
+        ).all()
+        
+        # Count unique leave days within this month
+        leave_days_count = 0
+        for rel in approved_leaves:
+            l_start = max(rel.start_date, start_date)
+            l_end = min(rel.end_date, end_date)
+            leave_days_count += (l_end - l_start).days + 1
+
+        total_paid_days = present_days + leave_days_count
+        absent_days = num_days - total_paid_days
+        
+        if total_paid_days > num_days: total_paid_days = num_days # Cap just in case
+        
+        # Financials
+        earned_salary = total_paid_days * daily_rate
+        leave_deductions = absent_days * daily_rate
+        
+        # Components (Applied on earned amount)
+        allowances = earned_salary * 0.10
+        tax = earned_salary * 0.05
+        pf = earned_salary * 0.12
+        
+        net = earned_salary + allowances + bonuses - tax - pf
+        
+        return {
+            'basic': earned_salary,
+            'daily_rate': daily_rate,
+            'paid_days': total_paid_days,
+            'absent_days': absent_days,
+            'allowances': allowances,
+            'bonuses': bonuses,
+            'deductions': leave_deductions,
+            'tax': tax,
+            'pf': pf,
+            'net': net
+        }
+        
+    @staticmethod
+    def generate_monthly_payroll(db, Employee, Payroll, month, year):
+        employees = Employee.query.all()
+        for emp in employees:
+            # Check if already generated
+            existing = Payroll.query.filter_by(employee_id=emp.id, month=month, year=year).first()
+            if existing: continue
+            
+            calc = PayrollService.calculate_net_salary(emp, month, year)
+            pay = Payroll(
+                employee_id=emp.id,
+                month=month,
+                year=year,
+                basic_salary=calc['basic'],
+                allowances=calc['allowances'],
+                bonuses=calc['bonuses'],
+                overtime=0, # Simplified for pro-rata update
+                tax_deductions=calc['tax'],
+                pf_deductions=calc['pf'],
+                leave_deductions=calc['deductions'],
+                net_salary=calc['net']
+            )
+            db.session.add(pay)
+        db.session.commit()

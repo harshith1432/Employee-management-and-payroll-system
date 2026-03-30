@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance - AI HRMS{% endblock %}
+{% block header %}Attendance Protocol{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <!-- Clock Card -->
+    <div class="lg:col-span-5 glass-card p-12 flex flex-col items-center justify-center text-center relative overflow-hidden group">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-teal-500 to-transparent opacity-50"></div>
+        
+        <div class="w-20 h-20 bg-teal-500/10 rounded-3xl flex items-center justify-center border border-teal-500/20 mb-8 transform group-hover:rotate-12 transition-transform duration-500">
+            <i class="fas fa-clock text-teal-400 text-3xl"></i>
+        </div>
+        
+        <h3 class="plus-jakarta text-3xl font-extrabold text-[var(--text-main)] tracking-tight mb-2">Chronos Sync</h3>
+        <p class="text-[var(--text-muted)] font-medium mb-10">Real-time temporal tracking</p>
+        
+        <div id="clockDisplay" class="text-7xl font-black text-[var(--text-main)] tracking-tighter mb-12 plus-jakarta drop-shadow-[0_0_15px_rgba(20,184,166,0.3)]">
+            00:00:00
+        </div>
+        
+        <div class="w-full space-y-4">
+            <button id="clockInBtn" class="w-full bg-gradient-to-br from-teal-500 to-teal-700 text-white py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-teal-500/20 flex items-center justify-center gap-3">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>Initiate Session</span>
+            </button>
+            <button id="clockOutBtn" class="w-full bg-gradient-to-br from-rose-500 to-rose-700 text-white py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-rose-500/20 flex items-center justify-center gap-3 hidden">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Terminate Session</span>
+            </button>
+        </div>
+        
+        <div class="mt-10 flex items-center gap-3 px-6 py-3 bg-[var(--bg-glass)] rounded-2xl border border-[var(--border-glass)]">
+            <div class="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></div>
+            <p id="attStatus" class="text-[var(--text-muted)] text-xs font-bold uppercase tracking-widest">Awaiting Uplink</p>
+        </div>
+    </div>
+
+    <!-- History Table -->
+    <div class="lg:col-span-7 flex flex-col gap-8">
+        <div class="glass-card flex-1 overflow-hidden flex flex-col">
+            <div class="p-8 border-b border-[var(--border-glass)] flex justify-between items-center bg-[var(--bg-glass)]">
+                <h4 class="plus-jakarta text-xl font-extrabold text-[var(--text-main)] tracking-tight">Temporal Logs</h4>
+                <span class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest bg-[var(--bg-glass)] px-3 py-1 rounded-full">Recent 30 Days</span>
+            </div>
+            <div class="overflow-y-auto custom-scrollbar flex-1">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-glass)] bg-[var(--bg-glass)]">
+                            <th class="px-8 py-5">Date</th>
+                            <th class="px-8 py-5">Entry</th>
+                            <th class="px-8 py-5">Exit</th>
+                            <th class="px-8 py-5 text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attHistory" class="text-[var(--text-main)] divide-y divide-[var(--border-glass)]">
+                        <!-- History rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clockDisplay').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    async function checkStatus() {
+        try {
+            const res = await fetch('/api/attendance/history', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const history = await res.json();
+            const today = new Date().toISOString().split('T')[0];
+            const record = history.find(r => r.date === today);
+            
+            const inBtn = document.getElementById('clockInBtn');
+            const outBtn = document.getElementById('clockOutBtn');
+            const statusText = document.getElementById('attStatus');
+            
+            if (record) {
+                if (record.clock_out) {
+                    inBtn.classList.add('hidden');
+                    outBtn.classList.add('hidden');
+                    statusText.innerText = "Protocol Completed";
+                    statusText.parentElement.querySelector('div').classList.replace('bg-teal-500', 'bg-slate-500');
+                } else {
+                    inBtn.classList.add('hidden');
+                    outBtn.classList.remove('hidden');
+                    statusText.innerText = `Active Since ${new Date(record.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                }
+            } else {
+                inBtn.classList.remove('hidden');
+                outBtn.classList.add('hidden');
+                statusText.innerText = "System Ready";
+            }
+            
+            renderHistory(history);
+        } catch (err) {
+            console.error("Uplink Failure:", err);
+        }
+    }
+
+    async function handleClock(type) {
+        try {
+            const res = await fetch(`/api/attendance/clock-${type}`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ location: 'Global HQ' })
+            });
+            if (res.ok) checkStatus();
+        } catch (err) {
+            alert("PROTOCOL ERROR: UPLINK FAILED");
+        }
+    }
+
+    document.getElementById('clockInBtn').addEventListener('click', () => handleClock('in'));
+    document.getElementById('clockOutBtn').addEventListener('click', () => handleClock('out'));
+
+    function renderHistory(history) {
+        const body = document.getElementById('attHistory');
+        if (history.length === 0) {
+            body.innerHTML = `<tr><td colspan="4" class="px-8 py-20 text-center text-slate-500 font-medium">No temporal signatures recorded.</td></tr>`;
+            return;
+        }
+
+        body.innerHTML = history.map(r => `
+            <tr class="hover:bg-white/[0.01] transition-colors">
+                <td class="px-8 py-6 text-sm font-bold text-slate-400 font-mono tracking-tighter">${r.date}</td>
+                <td class="px-8 py-6 text-white font-medium">${r.clock_in ? new Date(r.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}</td>
+                <td class="px-8 py-6 text-white font-medium">${r.clock_out ? new Date(r.clock_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}</td>
+                <td class="px-8 py-6 text-right">
+                    <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${r.status === 'present' ? 'bg-teal-500/10 text-teal-400 ring-1 ring-teal-400/20' : 'bg-rose-500/10 text-rose-400 ring-1 ring-rose-400/20'}">
+                        ${r.status}
+                    </span>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    checkStatus();
+</script>
+{% endblock %}
