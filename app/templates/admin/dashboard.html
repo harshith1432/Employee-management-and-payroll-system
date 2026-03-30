@@ -4,7 +4,7 @@
 {% block header %}Overview Dashboard{% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 mb-12">
     <!-- Stats Cards -->
     <div class="glass-card p-8 group">
         <div class="flex items-center justify-between">
@@ -43,23 +43,45 @@
             <div>
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Present Today</p>
                 <h3 class="plus-jakarta text-4xl font-extrabold text-white" id="presentToday">0</h3>
+            </div>
+            <div class="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 group-hover:bg-blue-500/20 transition-all">
+                <i class="fas fa-calendar-alt text-blue-400 text-2xl"></i>
+            </div>
         </div>
-        <div class="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 group-hover:bg-blue-500/20 transition-all">
-            <i class="fas fa-calendar-alt text-blue-400 text-2xl"></i>
+        <div class="mt-4 flex items-center justify-between">
+            <div class="flex items-center text-xs font-medium text-blue-400">
+                <i class="fas fa-check-circle mr-1"></i>
+                <span>Real-time attendance</span>
+            </div>
+            <div id="adminLiveClock" class="text-[10px] font-black text-slate-500 uppercase tracking-tighter">00:00:00</div>
         </div>
     </div>
-    <div class="mt-4 flex items-center justify-between">
-        <div class="flex items-center text-xs font-medium text-blue-400">
-            <i class="fas fa-check-circle mr-1"></i>
-            <span>Real-time attendance</span>
+
+    <div class="glass-card p-8 group">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Unpaid Balance</p>
+                <h3 class="plus-jakarta text-4xl font-extrabold text-white" id="unpaidPayroll">₹0</h3>
+            </div>
+            <div class="p-4 bg-orange-500/10 rounded-2xl border border-orange-500/20 group-hover:bg-orange-500/20 transition-all">
+                <i class="fas fa-hand-holding-dollar text-orange-400 text-2xl"></i>
+            </div>
         </div>
-        <div id="adminLiveClock" class="text-[10px] font-black text-slate-500 uppercase tracking-tighter">00:00:00</div>
+        <div class="mt-4 flex flex-col space-y-3">
+            <div class="flex items-center text-xs font-medium text-orange-400">
+                <i class="fas fa-wallet mr-1"></i>
+                <span>Accumulated daily</span>
+            </div>
+            <button id="distributeSalaryBtn" onclick="distributeSalaries()" class="accent-button w-full py-2 text-sm items-center justify-center space-x-2 hidden">
+                <i class="fas fa-paper-plane"></i>
+                <span>Distribute</span>
+            </button>
+        </div>
     </div>
-</div>
 </div>
 
-<!-- Charts Section -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+<!-- Charts & Payload Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
     <div class="glass-card p-8 group h-[450px] flex flex-col">
         <div class="flex items-center justify-between mb-8">
             <div>
@@ -102,111 +124,139 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    async function loadStats() {
-        const role = localStorage.getItem('role') || 'employee';
-        if (role.toLowerCase() === 'employee') {
-            window.location.href = '/employee';
-            return;
-        }
+    let deptChart, trendChart;
+
+    async function loadAdminDashboard() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
 
         try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
             const res = await fetch('/api/dashboard/stats', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res.ok) throw new Error('Failed to fetch stats');
-            const data = await res.json();
+            const stats = await res.json();
             
-            document.getElementById('totalEmployees').innerText = data.total_employees || 0;
-            document.getElementById('totalPayroll').innerText = `₹${(data.total_payroll_expense || 0).toLocaleString()}`;
-            document.getElementById('presentToday').innerText = data.present_today || 0;
+            // Core Metrics
+            document.getElementById('totalEmployees').innerText = stats.total_employees;
+            document.getElementById('totalPayroll').innerText = `₹${stats.total_payroll_expense.toLocaleString('en-IN')}`;
+            document.getElementById('presentToday').innerText = stats.present_today;
             
-            // Render Dept Chart
-            const deptCtx = document.getElementById('deptChart');
-            if (deptCtx && data.department_distribution) {
-                new Chart(deptCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: Object.keys(data.department_distribution),
-                        datasets: [{
-                            data: Object.values(data.department_distribution),
-                            backgroundColor: ['#0D9488', '#14B8A6', '#2DD4BF', '#F59E0B', '#F43F5E'],
-                            borderWidth: 0,
-                            hoverOffset: 20
-                        }]
-                    },
-                    options: { 
-                        responsive: true, 
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: { 
-                                    color: '#94a3b8', 
-                                    font: { family: 'Inter', size: 11, weight: '600' }, 
-                                    usePointStyle: true, 
-                                    padding: 25 
-                                }
-                            }
-                        },
-                        cutout: '78%'
-                    }
-                });
+            // Salary Payload Specifics
+            const unpaidEl = document.getElementById('unpaidPayroll');
+            if (unpaidEl) {
+                unpaidEl.innerText = `₹${(stats.pending_payload || 0).toLocaleString('en-IN')}`;
             }
 
-            // Render Trend Chart
-            const trendCtx = document.getElementById('trendChart');
-            if (trendCtx && data.attendance_trend) {
-                new Chart(trendCtx, {
-                    type: 'line',
-                    data: {
-                        labels: data.attendance_trend.map(t => t.date),
-                        datasets: [{
-                            label: 'Present',
-                            data: data.attendance_trend.map(t => t.count),
-                            borderColor: '#8B5CF6',
-                            borderWidth: 4,
-                            backgroundColor: (context) => {
-                                const ctx = context.chart.ctx;
-                                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-                                gradient.addColorStop(0, 'rgba(139, 92, 246, 0.3)');
-                                gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
-                                return gradient;
-                            },
-                            fill: true,
-                            tension: 0.45,
-                            pointBackgroundColor: '#8B5CF6',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 3,
-                            pointRadius: 5,
-                            pointHoverRadius: 8
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: { 
-                                beginAtZero: true, 
-                                grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
-                                ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }
-                            },
-                            x: { 
-                                grid: { display: false },
-                                ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }
-                            }
-                        }
-                    }
-                });
-            }
+            updateCharts(stats);
         } catch (err) {
             console.error('Dashboard Error:', err);
         }
     }
-    
-    loadStats();
+
+    async function distributeSalaries() {
+        if (!confirm("CRITICAL: Distribute all accumulated earnings to the workforce now? This will reset the pending payload to ₹0.")) {
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch('/api/payroll/distribute', {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.msg);
+                loadAdminDashboard();
+            } else {
+                alert(data.msg);
+            }
+        } catch (err) {
+            alert("Connection error during distribution.");
+        }
+    }
+
+    function updateCharts(stats) {
+        // Dept Chart
+        const deptCtx = document.getElementById('deptChart');
+        if (deptCtx) {
+            if (deptChart) deptChart.destroy();
+            deptChart = new Chart(deptCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(stats.department_distribution),
+                    datasets: [{
+                        data: Object.values(stats.department_distribution),
+                        backgroundColor: ['#0ea5e9', '#8b5cf6', '#f43f5e', '#10b981', '#f59e0b'],
+                        borderWidth: 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom', 
+                            labels: { color: '#94a3b8', font: { family: 'Inter', size: 10, weight: '600' }, usePointStyle: true } 
+                        } 
+                    },
+                    cutout: '75%'
+                }
+            });
+        }
+
+        // Trend Chart
+        const trendCtx = document.getElementById('trendChart');
+        if (trendCtx) {
+            if (trendChart) trendChart.destroy();
+            trendChart = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: stats.attendance_trend.map(t => t.date),
+                    datasets: [{
+                        label: 'Present',
+                        data: stats.attendance_trend.map(t => t.count),
+                        borderColor: '#10b981',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                        pointRadius: 4,
+                        pointBackgroundColor: '#10b981'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { 
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#64748b', font: { size: 10 } }
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: '#64748b', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    loadAdminDashboard();
+    setInterval(loadAdminDashboard, 30000);
+
+    // Show distribute button only for admin
+    if (localStorage.getItem('role') === 'admin') {
+        const distBtn = document.getElementById('distributeSalaryBtn');
+        if (distBtn) {
+            distBtn.classList.remove('hidden');
+            distBtn.classList.add('flex');
+        }
+    }
 </script>
 {% endblock %}

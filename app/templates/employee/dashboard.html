@@ -38,19 +38,24 @@
             <h3 class="text-3xl font-bold mb-1" id="leavesUsed">0</h3>
             <p class="text-sm text-slate-400 font-medium">Leaves Taken</p>
         </div>
-        <div class="glass-card p-6 flex flex-col items-center justify-center text-center">
-            <div class="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center mb-4">
-                <i class="fas fa-indian-rupee-sign text-orange-500 text-xl"></i>
+        <div class="glass-card p-6 flex flex-col items-center justify-center text-center relative group">
+            <div class="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                <i class="fas fa-indian-rupee-sign text-purple-500 text-xl"></i>
             </div>
             <h3 class="text-2xl font-bold mb-1" id="lastSalary">₹ 0</h3>
-            <p class="text-sm text-slate-400 font-medium">Last Salary</p>
-        </div>
-        <div class="glass-card p-6 flex flex-col items-center justify-center text-center group cursor-pointer hover:bg-indigo-500/10 transition-all border border-indigo-500/20" onclick="showLeaveModal()">
-            <div class="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <i class="fas fa-paper-plane text-indigo-500 text-xl"></i>
+            <p class="text-xs text-slate-400 font-medium mb-3">Last Salary</p>
+            <div id="downloadSlipContainer" class="hidden">
+                 <button onclick="downloadLastSlip()" class="text-[9px] font-black uppercase tracking-widest bg-purple-500/10 text-purple-500 border border-purple-500/20 px-3 py-1.5 rounded-lg hover:bg-purple-500 hover:text-white transition-all">
+                    <i class="fas fa-download mr-1"></i> Slip
+                 </button>
             </div>
-            <h3 class="text-xl font-bold mb-1">Apply for Leave</h3>
-            <p class="text-xs text-slate-400 font-medium">Request time off</p>
+        </div>
+        <div class="glass-card p-6 flex flex-col items-center justify-center text-center border-emerald-500/30 bg-emerald-500/5">
+            <div class="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-wallet text-emerald-500 text-xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-1" id="accumulatedPay">₹ 0</h3>
+            <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Earnings (MTD)</p>
         </div>
     </div>
 
@@ -182,126 +187,130 @@
     setInterval(updateClock, 1000);
     updateClock();
 
+    let lastPayrollId = null;
+
     async function loadDashboard() {
-        const attRes = await fetch('/api/attendance/history', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        const history = await attRes.json();
-        
-        // Verification Check
-        const profileRes = await fetch('/api/employee/me', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        const profile = await profileRes.json();
-        
-        if (!profile.is_verified) {
-            document.getElementById('verificationShield').classList.remove('hidden');
-            document.getElementById('dashboardContent').classList.add('blur-xl', 'pointer-events-none');
-        }
+        const token = localStorage.getItem('token');
+        if (!token) return;
 
-        const tbody = document.getElementById('attendanceHistory');
-        
-        let presentCount = 0;
-        history.slice(0, 5).forEach(att => {
-            if(att.status === 'Present') presentCount++;
-            const row = `
-                <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
-                    <td class="py-4 font-medium">${new Date(att.date).toLocaleDateString()}</td>
-                    <td class="py-4 text-slate-400">${att.clock_in ? new Date(att.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}) : '--'}</td>
-                    <td class="py-4 text-slate-400">${att.clock_out ? new Date(att.clock_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}) : '--'}</td>
-                    <td class="py-4">
-                        <span class="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${att.status === 'Present' ? 'bg-teal-500/10 text-teal-500' : 'bg-red-500/10 text-red-500'}">
-                            ${att.status}
-                        </span>
-                    </td>
-                </tr>
-            `;
-            tbody.innerHTML += row;
-        });
+        try {
+            // Stats & Profile Check
+            const statsRes = await fetch('/api/dashboard/stats', { headers: { 'Authorization': `Bearer ${token}` } });
+            const stats = await statsRes.json();
+            const profileRes = await fetch('/api/employee/me', { headers: { 'Authorization': `Bearer ${token}` } });
+            const profile = await profileRes.json();
+            
+            if (!profile.is_verified) {
+                document.getElementById('verificationShield').classList.remove('hidden');
+                document.getElementById('dashboardContent').classList.add('blur-xl', 'pointer-events-none');
+                return;
+            }
 
-        document.getElementById('daysPresent').innerText = history.filter(a => a.status === 'Present').length;
-        
-        // Attendance Percent (Dummy Month Logic)
-        const percent = Math.round((history.filter(a => a.status === 'Present').length / 22) * 100);
-        document.getElementById('attendancePercent').innerText = `${Math.min(percent, 100)}%`;
-        document.getElementById('attendanceProgress').style.strokeDashoffset = 364.4 - (364.4 * Math.min(percent, 100) / 100);
+            // Real-Time Earnings
+            document.getElementById('accumulatedPay').innerText = `₹${(stats.accumulated_pay || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
 
-        // Leaves
-        const leaveRes = await fetch('/api/leave/my-requests', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        const leaves = await leaveRes.json();
-        document.getElementById('leavesUsed').innerText = leaves.filter(l => l.status === 'Approved').length;
-        
-        const leaveList = document.getElementById('leaveList');
-        leaves.slice(0, 3).forEach(l => {
-            leaveList.innerHTML += `
-                <div class="p-4 bg-white/5 rounded-xl border border-white/5">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-xs font-bold uppercase text-teal-500">${l.type}</span>
-                        <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/10 ${l.status === 'Approved' ? 'text-teal-500' : 'text-orange-500'}">${l.status}</span>
-                    </div>
-                    <p class="text-sm font-medium">${new Date(l.start).toLocaleDateString()} - ${new Date(l.end).toLocaleDateString()}</p>
-                </div>
-            `;
-        });
-
-        // Payroll
-        const payRes = await fetch('/api/payroll/history', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        const payroll = await payRes.json();
-        if(payroll.length > 0) {
-            document.getElementById('lastSalary').innerText = `₹ ${Math.round(payroll[0].net_salary).toLocaleString()}`;
-        }
-
-        // Schedule
-        const schedRes = await fetch('/api/schedule/my', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        const schedules = await schedRes.json();
-        const schedContainer = document.getElementById('scheduleContainer');
-        schedContainer.innerHTML = '';
-        
-        if (schedules.length === 0) {
-            schedContainer.innerHTML = '<div class="p-6 bg-white/5 rounded-2xl border border-dashed border-white/10 text-center text-slate-500 text-xs">No tasks assigned for today. Enjoy your shift!</div>';
-        } else {
-            schedules.forEach(s => {
-                schedContainer.innerHTML += `
-                    <div class="p-5 bg-white/5 rounded-2xl border border-white/10 hover:border-emerald-500/50 transition-all cursor-pointer group">
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">${s.shift_start} - ${s.shift_end}</span>
-                            <span class="text-[8px] font-black uppercase tracking-widest bg-emerald-500 text-white px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/20">${s.status}</span>
-                        </div>
-                        <p class="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">${s.task || 'General Duties'}</p>
+            // Attendance Data
+            const attRes = await fetch('/api/attendance/history', { headers: { 'Authorization': `Bearer ${token}` } });
+            const history = await attRes.json();
+            
+            const tbody = document.getElementById('attendanceHistory');
+            tbody.innerHTML = ''; // Prevent duplicates
+            
+            history.slice(0, 5).forEach(att => {
+                tbody.innerHTML += `
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td class="py-4 font-medium">${new Date(att.date).toLocaleDateString()}</td>
+                        <td class="py-4 text-slate-400">${att.clock_in ? new Date(att.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}) : '--'}</td>
+                        <td class="py-4 text-slate-400">${att.clock_out ? new Date(att.clock_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}) : '--'}</td>
+                        <td class="py-4">
+                            <span class="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${att.status === 'Present' ? 'bg-teal-500/10 text-teal-500' : 'bg-red-500/10 text-red-500'}">
+                                ${att.status}
+                            </span>
+                        </td>
+                    </tr>
                 `;
             });
-        }
 
-        // Performance
-        const perfRes = await fetch('/api/performance/my', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        const performance = await perfRes.json();
-        const perfContainer = document.getElementById('performanceContainer');
-        perfContainer.innerHTML = '';
-        
-        if (performance.length === 0) {
-            perfContainer.innerHTML = '<div class="p-6 bg-white/5 rounded-2xl border border-dashed border-white/10 text-center text-slate-500 text-xs italic">No performance benchmarks observed in this cycle.</div>';
-        } else {
-            performance.forEach(p => {
-                const stars = '★'.repeat(p.rating) + '☆'.repeat(5 - p.rating);
-                perfContainer.innerHTML += `
-                    <div class="p-5 bg-white/5 rounded-2xl border border-white/10">
-                        <div class="flex justify-between items-center mb-3">
-                            <div class="text-amber-400 text-sm tracking-widest">${stars}</div>
-                            <span class="text-[8px] font-black uppercase text-slate-500 tracking-tighter">${new Date(p.date).toLocaleDateString()}</span>
+            document.getElementById('daysPresent').innerText = history.filter(a => a.status === 'Present').length;
+            const percent = Math.round((history.filter(a => a.status === 'Present').length / 22) * 100);
+            document.getElementById('attendancePercent').innerText = `${Math.min(percent, 100)}%`;
+            document.getElementById('attendanceProgress').style.strokeDashoffset = 364.4 - (364.4 * Math.min(percent, 100) / 100);
+
+            // Payroll Check
+            const payRes = await fetch('/api/payroll/history', { headers: { 'Authorization': `Bearer ${token}` } });
+            const payroll = await payRes.json();
+            if(payroll.length > 0) {
+                lastPayrollId = payroll[0].id;
+                document.getElementById('lastSalary').innerText = `₹${Math.round(payroll[0].net_salary).toLocaleString()}`;
+                document.getElementById('downloadSlipContainer').classList.remove('hidden');
+            }
+
+            // Leaves
+            const leaveRes = await fetch('/api/leave/my-requests', { headers: { 'Authorization': `Bearer ${token}` } });
+            const leaves = await leaveRes.json();
+            document.getElementById('leavesUsed').innerText = leaves.filter(l => l.status === 'Approved').length;
+            const leaveList = document.getElementById('leaveList');
+            leaveList.innerHTML = '';
+            leaves.slice(0, 3).forEach(l => {
+                leaveList.innerHTML += `
+                    <div class="p-4 bg-white/5 rounded-xl border border-white/5">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold uppercase text-teal-500">${l.type}</span>
+                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/10 ${l.status === 'Approved' ? 'text-teal-500' : 'text-orange-500'}">${l.status}</span>
                         </div>
-                        <p class="text-xs text-slate-300 leading-relaxed font-medium">"${p.feedback}"</p>
+                        <p class="text-sm font-medium">${new Date(l.start).toLocaleDateString()} - ${new Date(l.end).toLocaleDateString()}</p>
                     </div>
                 `;
             });
+
+            // Gatekeeping & Agenda
+            const clockInBtn = document.getElementById('clockInBtn');
+            const isSet = stats.today_agenda && stats.today_agenda.is_set;
+            
+            if (!isSet) {
+                clockInBtn.disabled = true;
+                clockInBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                clockInBtn.innerHTML = `<i class="fas fa-lock"></i><span>Waiting for HR Agenda...</span>`;
+            } else {
+                clockInBtn.disabled = false;
+                clockInBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                clockInBtn.innerHTML = `<i class="fas fa-fingerprint"></i><span>Punch In Now</span>`;
+            }
+
+            // Performance
+            const perfRes = await fetch('/api/performance/my', { headers: { 'Authorization': `Bearer ${token}` } });
+            const performance = await perfRes.json();
+            const perfContainer = document.getElementById('performanceContainer');
+            if (perfContainer) {
+                perfContainer.innerHTML = '';
+                if (performance.length === 0) {
+                    perfContainer.innerHTML = '<div class="p-6 bg-white/5 rounded-2xl border border-dashed border-white/10 text-center text-slate-500 text-xs italic">No performance benchmarks observed in this cycle.</div>';
+                } else {
+                    performance.forEach(p => {
+                        const stars = '★'.repeat(p.rating) + '☆'.repeat(5 - p.rating);
+                        perfContainer.innerHTML += `
+                            <div class="p-5 bg-white/5 rounded-2xl border border-white/10">
+                                <div class="flex justify-between items-center mb-3">
+                                    <div class="text-amber-400 text-sm tracking-widest">${stars}</div>
+                                    <span class="text-[8px] font-black uppercase text-slate-500 tracking-tighter">${new Date(p.date).toLocaleDateString()}</span>
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed font-medium">"${p.feedback}"</p>
+                            </div>
+                        `;
+                    });
+                }
+            }
+        } catch (err) {
+            console.error("Dashboard Sync Error:", err);
         }
+    }
+
+    function downloadLastSlip() {
+        if (!lastPayrollId) {
+            alert("No recent payroll record found.");
+            return;
+        }
+        window.location.href = `/api/payroll/slip/${lastPayrollId}`;
     }
 
     function showLeaveModal() { document.getElementById('leaveModal').classList.remove('hidden'); }
@@ -340,5 +349,6 @@
     });
 
     loadDashboard();
+    setInterval(loadDashboard, 10000); // Real-time polling every 10s
 </script>
 {% endblock %}

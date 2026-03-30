@@ -39,6 +39,7 @@ class Employee(db.Model):
     salary_base = db.Column(db.Float, default=0.0)
     profile_photo = db.Column(db.String(200))
     is_verified = db.Column(db.Boolean, default=False)
+    accumulated_pay = db.Column(db.Float, default=0.0)
     
     attendance = db.relationship('Attendance', backref='employee', lazy=True, cascade="all, delete-orphan")
     payroll = db.relationship('Payroll', backref='employee', lazy=True, cascade="all, delete-orphan")

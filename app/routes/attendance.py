@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app.models import Attendance, User
+from app.models import Attendance, User, DailyAgenda
 from app.extensions import db
 from datetime import datetime
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
@@ -16,6 +16,12 @@ def clock_in():
         return jsonify(msg="Employee profile not found"), 404
         
     today = datetime.now().date()
+    
+    # Enforce "Agenda First" rule: HR must set today's agenda before employees can clock in
+    agenda = DailyAgenda.query.filter_by(date=today).first()
+    if not agenda:
+        return jsonify(msg="HR has not yet assigned today's Work Agenda. Please wait for the broadcast."), 403
+        
     existing = Attendance.query.filter_by(employee_id=user.employee_profile.id, date=today).first()
     if existing:
         return jsonify(msg="Already clocked in today"), 400
@@ -23,13 +29,19 @@ def clock_in():
     data = request.get_json()
     new_attendance = Attendance(
         employee_id=user.employee_profile.id,
+        date=today,
         clock_in=datetime.now(),
-        location=data.get('location')
+        status='Present',
+        location=data.get('location', 'Office')
     )
+    
+    # Increment accumulated pay
+    daily_rate = user.employee_profile.salary_base / 30
+    user.employee_profile.accumulated_pay += daily_rate
+    
     db.session.add(new_attendance)
     db.session.commit()
-    return jsonify(msg="Clocked in successfully"), 201
-
+    return jsonify(msg="Clocked in successfully", daily_earned=round(daily_rate, 2)), 201
 @bp.route('/clock-out', methods=['POST'])
 @jwt_required()
 def clock_out():
@@ -57,6 +69,19 @@ def mark_attendance():
     date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
     
     attendance = Attendance.query.filter_by(employee_id=emp_id, date=date_obj).first()
+    
+    from app.models import Employee
+    emp = Employee.query.get(emp_id)
+    if not emp:
+        return jsonify(msg="Employee not found"), 404
+
+    # Determine if we should increment pay:
+    # Only if status is being set to 'Present' AND it wasn't 'Present' before.
+    should_increment_pay = False
+    if status == 'Present':
+        if not attendance or attendance.status != 'Present':
+            should_increment_pay = True
+
     if attendance:
         attendance.status = status
         if status == 'Present' and not attendance.clock_in:
@@ -70,6 +95,10 @@ def mark_attendance():
         )
         db.session.add(attendance)
     
+    if should_increment_pay:
+        daily_rate = emp.salary_base / 30
+        emp.accumulated_pay += daily_rate
+            
     db.session.commit()
     return jsonify(msg=f"Attendance status synced: {status}"), 200
 

@@ -31,6 +31,9 @@
             <button id="generateBtn" class="bg-teal-500 hover:bg-teal-400 text-white px-6 py-2 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg shadow-teal-500/20 active:scale-95">
                 Run Cycle
             </button>
+            <button id="reportBtn" class="bg-indigo-500 hover:bg-indigo-400 text-white px-6 py-2 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg shadow-indigo-500/20 active:scale-95">
+                <i class="fas fa-file-pdf mr-2"></i> Report
+            </button>
         </div>
     </div>
     
@@ -38,10 +41,11 @@
         <table class="w-full text-left">
             <thead>
                 <tr class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-glass)] bg-[var(--bg-glass)]">
+                    <th class="px-8 py-5">Personnel</th>
                     <th class="px-8 py-5">Temporal Index</th>
                     <th class="px-8 py-5">Status</th>
-                    <th class="px-8 py-5">Total Disbursement</th>
-                    <th class="px-8 py-5 text-right">Audit Trails</th>
+                    <th class="px-8 py-5">Net Disbursement</th>
+                    <th class="px-8 py-5 text-right">Documents</th>
                 </tr>
             </thead>
             <tbody id="payrollTable" class="text-[var(--text-main)] divide-y divide-[var(--border-glass)]">
@@ -80,9 +84,20 @@
                 body.innerHTML += `
                     <tr class="group hover:bg-[var(--bg-glass)] transition-colors border-b border-[var(--border-glass)]">
                         <td class="px-8 py-6">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 font-black text-xs border border-teal-500/20">
+                                    ${p.emp_id.slice(-2)}
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-[var(--text-main)] font-bold text-sm tracking-tight">${p.name || 'Personal Record'}</span>
+                                    <span class="text-[var(--text-muted)] text-[10px] font-black tracking-widest uppercase">${p.emp_id}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-8 py-6">
                             <div class="flex flex-col">
-                                <span class="text-[var(--text-main)] font-bold text-sm tracking-tight">${MONTH_NAMES[p.month-1]}</span>
-                                <span class="text-[var(--text-muted)] text-xs font-medium tracking-widest">${p.year}</span>
+                                <span class="text-[var(--text-main)] font-bold text-xs tracking-tight">${MONTH_NAMES[p.month-1]}</span>
+                                <span class="text-[var(--text-muted)] text-[10px] font-medium tracking-widest">${p.year}</span>
                             </div>
                         </td>
                         <td class="px-8 py-6">
@@ -91,12 +106,12 @@
                             </span>
                         </td>
                         <td class="px-8 py-6">
-                            <span class="text-[var(--text-main)] font-mono font-bold tracking-tighter text-lg">₹ ${p.net_salary.toLocaleString()}</span>
+                            <span class="text-[var(--text-main)] font-mono font-bold tracking-tighter text-base">₹ ${p.net_salary.toLocaleString()}</span>
                         </td>
                         <td class="px-8 py-6 text-right">
-                            <button onclick="downloadSlip(${p.id})" class="p-3 rounded-xl bg-[var(--bg-glass)] text-[var(--text-muted)] hover:bg-teal-500/20 hover:text-teal-400 transition-all opacity-0 group-hover:opacity-100 flex items-center gap-2 ml-auto">
-                                <i class="fas fa-file-invoice-dollar"></i>
-                                <span class="text-[10px] font-black uppercase tracking-widest">Payslip</span>
+                            <button onclick="downloadSlip(${p.id})" class="p-3 rounded-xl bg-[var(--bg-glass)] text-[var(--text-muted)] hover:bg-teal-500/20 hover:text-teal-400 transition-all opacity-0 group-hover:opacity-100 flex items-center gap-2 ml-auto border border-[var(--border-glass)]">
+                                <i class="fas fa-download"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest">SLIP</span>
                             </button>
                         </td>
                     </tr>
@@ -107,8 +122,41 @@
         }
     }
 
+    document.getElementById('reportBtn').addEventListener('click', async () => {
+        const month = document.getElementById('month').value;
+        const year = document.getElementById('year').value;
+        const btn = document.getElementById('reportBtn');
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> ...';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`/api/payroll/download-report?month=${month}&year=${year}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Payroll_Report_${month}_${year}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } else {
+                alert("Failed to generate report.");
+            }
+        } catch (err) {
+            alert("Report request failed.");
+        } finally {
+            btn.innerHTML = '<i class="fas fa-file-pdf mr-2"></i> Report';
+            btn.disabled = false;
+        }
+    });
+
     async function downloadSlip(id) {
-        const res = await fetch(`/api/report/salary-slip/${id}`, {
+        // Use a direct download link or fetch with headers
+        const res = await fetch(`/api/payroll/download-slip/${id}`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
         if (res.ok) {
@@ -116,10 +164,12 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `PAYSLIP_AI_HRMS_${id}.pdf`;
+            a.download = `Salary_Slip_${id}.pdf`;
             document.body.appendChild(a);
             a.click();
             a.remove();
+        } else {
+            alert("Failed to download slip: Unauthorized or Not Found");
         }
     }
 
@@ -128,12 +178,11 @@
         const year = document.getElementById('year').value;
         const btn = document.getElementById('generateBtn');
         
-        btn.innerText = "PROCESSING CYCLE...";
+        btn.innerText = "PROCESSING...";
         btn.disabled = true;
-        btn.classList.replace('bg-teal-500', 'bg-slate-700');
         
         try {
-            await fetch('/api/payroll/generate', {
+            const res = await fetch('/api/payroll/generate', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -141,12 +190,13 @@
                 },
                 body: JSON.stringify({ month, year })
             });
+            const data = await res.json();
+            alert(data.msg);
         } catch (err) {
-            alert("CYCLE FAILED: PROTOCOL REJECTED");
+            alert("Lifecycle generation failed.");
         } finally {
             btn.innerText = "RUN CYCLE";
             btn.disabled = false;
-            btn.classList.replace('bg-slate-700', 'bg-teal-500');
             fetchPayroll();
         }
     });

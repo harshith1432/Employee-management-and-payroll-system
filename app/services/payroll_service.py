@@ -71,19 +71,33 @@ class PayrollService:
             existing = Payroll.query.filter_by(employee_id=emp.id, month=month, year=year).first()
             if existing: continue
             
-            calc = PayrollService.calculate_net_salary(emp, month, year)
+            # Use accumulated_pay instead of recalculating from scratch
+            # However, for consistency, we still calculate the standard components
+            # But the 'basic_salary' for this month is the accumulated amount
+            accumulated = emp.accumulated_pay
+            if accumulated <= 0: continue # Skip if no earnings
+            
+            # Components applied on accumulated amount
+            allowances = accumulated * 0.10
+            tax = accumulated * 0.05
+            pf = accumulated * 0.12
+            net = accumulated + allowances - tax - pf
+            
             pay = Payroll(
                 employee_id=emp.id,
                 month=month,
                 year=year,
-                basic_salary=calc['basic'],
-                allowances=calc['allowances'],
-                bonuses=calc['bonuses'],
-                overtime=0, # Simplified for pro-rata update
-                tax_deductions=calc['tax'],
-                pf_deductions=calc['pf'],
-                leave_deductions=calc['deductions'],
-                net_salary=calc['net']
+                basic_salary=accumulated,
+                allowances=allowances,
+                bonuses=0,
+                overtime=0,
+                tax_deductions=tax,
+                pf_deductions=pf,
+                leave_deductions=0, # Deductions already reflected in accumulation (or lack thereof)
+                net_salary=net
             )
             db.session.add(pay)
+            
+            # Reset the accumulator for the next month
+            emp.accumulated_pay = 0.0
         db.session.commit()

@@ -14,7 +14,7 @@ def create_app(config_class=Config):
     bcrypt.init_app(app)
     CORS(app)
 
-    from app.routes import auth, employee, attendance, payroll, leave, dashboard, schedule, performance
+    from app.routes import auth, employee, attendance, payroll, leave, dashboard, schedule, performance, agenda
     app.register_blueprint(auth.bp)
     app.register_blueprint(employee.bp)
     app.register_blueprint(attendance.bp)
@@ -23,5 +23,6 @@ def create_app(config_class=Config):
     app.register_blueprint(dashboard.bp)
     app.register_blueprint(schedule.bp)
     app.register_blueprint(performance.bp)
+    app.register_blueprint(agenda.bp)
 
     return app

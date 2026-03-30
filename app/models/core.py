@@ -70,3 +70,12 @@ class Schedule(db.Model):
     task_description = db.Column(db.Text)
     status = db.Column(db.String(20), default='assigned') # assigned, in_progress, completed
     created_at = db.Column(db.DateTime, default=datetime.now)
+
+class DailyAgenda(db.Model):
+    __tablename__ = 'daily_agendas'
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, unique=True, nullable=False, default=lambda: datetime.now().date())
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.now)

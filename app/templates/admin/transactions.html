@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions - AI HRMS{% endblock %}
+{% block header %}Latest Transactions{% endblock %}
+
+{% block content %}
+<!-- Salary Payload History -->
+<div class="glass-card p-8 group mb-8">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h3 class="plus-jakarta text-xl font-bold text-white tracking-tight">Payout Payload History</h3>
+            <p class="text-xs text-slate-500 font-medium">Summary of distributed assets to workforce</p>
+        </div>
+        <div class="flex space-x-3">
+            <div class="px-4 py-2 bg-teal-500/10 border border-teal-500/20 rounded-xl text-xs font-bold text-teal-400">
+                ALL TRANSACTIONS
+            </div>
+        </div>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="text-[10px] text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">
+                    <th class="pb-4 font-black">Employee ID</th>
+                    <th class="pb-4 font-black">Designation Name</th>
+                    <th class="pb-4 font-black">Month/Year</th>
+                    <th class="pb-4 font-black text-right">Distributed Amount</th>
+                    <th class="pb-4 font-black text-right">Status</th>
+                </tr>
+            </thead>
+            <tbody id="payoutPayloadBody">
+                <!-- Data will be populated here -->
+                <tr class="border-b border-white/5 hover:bg-white/5 transition-all group/row">
+                    <td colspan="5" class="py-8 text-center text-slate-500 italic text-sm">
+                        Loading transaction history...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    async function fetchPayoutHistory() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/payroll/history', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const history = await res.json();
+            
+            const body = document.getElementById('payoutPayloadBody');
+            if (!body) return;
+
+            if (history.length === 0) {
+                body.innerHTML = `
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition-all group/row">
+                        <td colspan="5" class="py-12 text-center text-slate-500 italic text-sm">
+                            <i class="fas fa-box-open text-3xl mb-3 block text-slate-700"></i>
+                            No transaction history available.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            body.innerHTML = '';
+            // Show all transactions instead of slicing to 5 because this is the dedicated transactions page.
+            history.forEach(record => {
+                body.innerHTML += `
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition-all group/row">
+                        <td class="py-4 font-mono text-xs font-bold text-teal-400">#${record.emp_id}</td>
+                        <td class="py-4 font-medium">${record.name}</td>
+                        <td class="py-4 text-xs text-slate-400 font-bold">${record.month}/${record.year}</td>
+                        <td class="py-4 text-right font-black text-white">₹${record.net_salary.toLocaleString()}</td>
+                        <td class="py-4 text-right">
+                            <span class="px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest bg-teal-500/10 text-teal-500 border border-teal-500/20">
+                                ${record.status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (err) {
+            console.error('History Fetch Error:', err);
+            const body = document.getElementById('payoutPayloadBody');
+            if (body) {
+                body.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-red-500 italic text-sm">
+                            Failed to load transactions.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+    }
+
+    // Initial load
+    fetchPayoutHistory();
+</script>
+{% endblock %}
